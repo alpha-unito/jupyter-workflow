@@ -1,6 +1,7 @@
 import argparse
 import ast
 import asyncio
+import builtins
 import codeop
 import inspect
 import io
@@ -9,6 +10,7 @@ import sys
 import traceback
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
 from tempfile import NamedTemporaryFile
+from typing import Dict
 
 if sys.version_info > (3, 8):
     from ast import Module
@@ -71,6 +73,13 @@ class RemoteCompiler(codeop.Compile):
             self.flags &= ~turn_on_bits
 
 
+def prepare_ns(namespace: Dict) -> Dict:
+    namespace.setdefault('__name__', '__main__')
+    namespace.setdefault('__builtin__', builtins)
+    namespace.setdefault('__builtins__', builtins)
+    return namespace
+
+
 async def run_code(args):
     try:
         command_output, command_error = io.StringIO(), io.StringIO()
@@ -79,8 +88,8 @@ async def run_code(args):
             compiler = RemoteCompiler()
             # Deserialize elements
             ast_nodes = _deserialize(args.code_file)
-            user_ns = _deserialize(args.local_ns_file, {})
-            user_global_ns = _deserialize(args.global_ns_file, user_ns)
+            user_ns = prepare_ns(_deserialize(args.local_ns_file, {}))
+            user_global_ns = prepare_ns(_deserialize(args.global_ns_file, user_ns))
             # Exec cell code
             for node, mode in ast_nodes:
                 if mode == 'exec':

@@ -1,0 +1,75 @@
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+service:
+  type: ClusterIP
+  ports:
+    - name: redis-primary
+      port: 6379
+      targetPort: 6379
+    - name: redis-shard-0
+      port: 6380
+      targetPort: 6380
+    - name: redis-shard-1
+      port: 6381
+      targetPort: 6381
+    - name: object-manager
+      port: 12345
+      targetPort: 12345
+    - name: node-manager
+      port: 12346
+      targetPort: 12346
+
+head:
+  replicaCount: 1
+
+  image:
+    repository: rayproject/autoscaler
+    pullPolicy: Always
+    tag: "latest"
+
+  imagePullSecrets: [ ]
+  nameOverride: ""
+  fullnameOverride: ""
+
+  podAnnotations: {}
+
+  podSecurityContext: {}
+
+  securityContext: {}
+
+  resources: {}
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+worker:
+  replicaCount: 2
+
+  image:
+    repository: rayproject/autoscaler
+    pullPolicy: Always
+    tag: "latest"
+
+  imagePullSecrets: [ ]
+  nameOverride: ""
+  fullnameOverride: ""
+
+  podAnnotations: {}
+
+  podSecurityContext: {}
+
+  securityContext: {}
+
+  resources: {}
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}

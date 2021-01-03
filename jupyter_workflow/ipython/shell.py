@@ -87,13 +87,10 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.workflow_dir: Text = os.path.join(tempfile.gettempdir(), 'streamflow')
-        self.config_dir: Text = os.path.join(self.workflow_dir, 'config')
-        os.makedirs(self.config_dir, exist_ok=True)
-        self.context: StreamFlowContext = StreamFlowContext(self.config_dir)
+        self.context: StreamFlowContext = StreamFlowContext(os.getcwd())
         self.context.checkpoint_manager = DummyCheckpointManager(self.context)
         self.context.data_manager = DefaultDataManager(self.context)
-        self.context.deployment_manager = DefaultDeploymentManager(self.config_dir)
+        self.context.deployment_manager = DefaultDeploymentManager(os.getcwd())
         self.context.failure_manager = DummyFailureManager(self.context)
         self.context.scheduler = DefaultScheduler(self.context, DataLocalityPolicy())
         self.wf_nb_config: MutableMapping[Text, Any] = {}
