@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "config_schema.json",
+  "type": "object",
+  "definitions": {
+    "dependency": {
+      "$id": "#/definitions/dependency",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "env",
+            "name",
+            "file"
+          ]
+        },
+        "value": {},
+        "valueFrom": {
+          "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "required": [
+            "valueFrom"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "step": {
+      "$id": "#/definitions/step",
+      "type": "object",
+      "properties": {
+        "in": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "$ref": "#/definitions/dependency"
+              }
+            ]
+          },
+          "uniqueItems": true
+        },
+        "out": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "$ref": "#/definitions/dependency"
+              }
+            ]
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "$id": "#/definitions/target",
+      "type": "object",
+      "properties": {
+        "model": {
+          "$id": "#/properties/model",
+          "type": "object",
+          "$ref": "https://raw.githubusercontent.com/alpha-unito/streamflow/feature/workflow-executor/streamflow/config/schemas/v1.0/config_schema.json#/definitions/model"
+        },
+        "resources": {
+          "type": "integer",
+          "default": 1
+        },
+        "service": {
+          "type": "string"
+        },
+        "workdir": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "interpreter": {
+      "$id": "#/properties/interpreter",
+      "type": "string"
+    },
+    "step": {
+      "$id": "#/properties/step",
+      "type": "object",
+      "$ref": "#/definitions/step"
+    },
+    "target": {
+      "$id": "#/properties/target",
+      "type": "object",
+      "$ref": "#/definitions/target"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "step",
+    "version"
+  ]
+}
