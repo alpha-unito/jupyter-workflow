@@ -1,5 +1,7 @@
 import ast
 import asyncio
+import hashlib
+import json
 import os
 import sys
 import tempfile
@@ -93,7 +95,6 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         self.context.deployment_manager = DefaultDeploymentManager(os.getcwd())
         self.context.failure_manager = DummyFailureManager(self.context)
         self.context.scheduler = DefaultScheduler(self.context, DataLocalityPolicy())
-        self.wf_nb_config: MutableMapping[Text, Any] = {}
         self.wf_cell_config: ContextVar[MutableMapping[Text, Any]] = ContextVar('wf_cell_config', default={})
         self.sys_excepthook = None
 
@@ -137,15 +138,21 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                                    compiler,
                                    ast_nodes: List[Tuple[ast.AST, Text]],
                                    cell_config: MutableMapping[Text, Any]):
-        # Get StreamFlow config
-        sf_config = {**self.wf_nb_config, **cell_config}  # TODO: validate cell_config from protocol schema
         # Build the step target from metadata
-        target = _build_target(sf_config['model_name'], sf_config['target'])
+        target = cell_config['target']
+        if isinstance(target['model'], Text):
+            target = {**target, **{'model': cell_config['models'][target['model']]}}
+        model_name = hashlib.md5(json.dumps(
+            obj=target['model'],
+            sort_keys=True,
+            ensure_ascii=True,
+            default=str).encode('ascii')).hexdigest()
+        target = _build_target(model_name, target)
         # Extract Python interpreter from metadata
-        interpreter = sf_config.get('interpreter', 'python')
+        interpreter = cell_config.get('interpreter', 'python')
         # Create a step structure
         step = BaseStep(
-            name=sf_config['step_id'],
+            name=cell_config['step_id'],
             context=self.context,
             target=target)
         # Create dummy job for input tokens
@@ -154,9 +161,10 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             step=BaseStep(utils.random_name(), self.context),
             inputs=[])
         # Process cell inputs
-        cell_inputs = cell_config['step'].get('in', ['*'])
+        cell_inputs = cell_config['step'].get('in', [])
+        autoin = cell_config['step'].get('autoin', True)
         environment = {}
-        input_names = []
+        input_names = self._extract_dependencies(cell_name, compiler, ast_nodes) if autoin else []
         for element in cell_inputs:
             # If is a string, it refers to the name of a variable
             if isinstance(element, Text):
@@ -180,10 +188,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                         input_names.append(name)
                 # If type is equal to `name`, it refers to a variable
                 elif element_type == 'name':
-                    if element['name'] == '*':
-                        input_names.extend(self._extract_dependencies(cell_name, compiler, ast_nodes))
-                    else:
-                        input_names.append(element['name'])
+                    input_names.append(element['name'])
                 # Put each additional dependency not related to variables as env variables
                 elif element_type == 'env':
                     environment[element['name']] = element['value']

@@ -61,6 +61,15 @@ def compare(code_obj):
     return is_async
 
 
+class NameContainer(object):
+    __slots__ = ('name', 'args', 'kwargs')
+
+    def __init__(self, name, *args, **kwargs):
+        self.name = name
+        self.args = args
+        self.kwargs = kwargs
+
+
 class RemoteCompiler(codeop.Compile):
 
     @contextmanager

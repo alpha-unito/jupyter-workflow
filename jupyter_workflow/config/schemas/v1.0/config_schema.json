@@ -37,6 +37,21 @@
       ],
       "additionalProperties": false
     },
+    "serializer": {
+      "$id": "#/definitions/serializer",
+      "type": "object",
+      "properties": {
+        "predump": {
+          "type": "string"
+        },
+        "postload": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
     "step": {
       "$id": "#/definitions/step",
       "type": "object",
@@ -80,8 +95,15 @@
       "properties": {
         "model": {
           "$id": "#/properties/model",
-          "type": "object",
-          "$ref": "https://raw.githubusercontent.com/alpha-unito/streamflow/feature/workflow-executor/streamflow/config/schemas/v1.0/config_schema.json#/definitions/model"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "$ref": "https://raw.githubusercontent.com/alpha-unito/streamflow/feature/workflow-executor/streamflow/config/schemas/v1.0/config_schema.json#/definitions/model"
+            }
+          ]
         },
         "resources": {
           "type": "integer",
@@ -105,6 +127,26 @@
       "$id": "#/properties/interpreter",
       "type": "string"
     },
+    "models": {
+      "$id": "#/properties/models",
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-zA-Z0-9._-]*$": {
+          "$ref": "https://raw.githubusercontent.com/alpha-unito/streamflow/feature/workflow-executor/streamflow/config/schemas/v1.0/config_schema.json#/definitions/model"
+        }
+      },
+      "additionalProperties": false
+    },
+    "serializers": {
+      "$id": "#/properties/serializers",
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-zA-Z0-9._-]*$": {
+          "$ref": "#/definitions/serializer"
+        }
+      },
+      "additionalProperties": false
+    },
     "step": {
       "$id": "#/properties/step",
       "type": "object",
@@ -122,5 +164,6 @@
   "required": [
     "step",
     "version"
-  ]
+  ],
+  "additionalProperties": false
 }

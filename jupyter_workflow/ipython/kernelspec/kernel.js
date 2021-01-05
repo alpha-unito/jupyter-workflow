@@ -45,9 +45,15 @@ define([
                     store_history: true,
                     stop_on_error: stop_on_error
                 }
+
                 if (this.metadata !== undefined && this.metadata.hasOwnProperty('workflow')) {
-                    kernel_options.workflow = this.metadata['workflow'];
-                    kernel_options.cell_id = this.cell_id;
+                    if (this.notebook.metadata !== undefined && this.notebook.metadata.hasOwnProperty('workflow')) {
+                        kernel_options.workflow = {
+                            ...this.metadata['workflow'],
+                            ...this.notebook.metadata['workflow']};
+                    } else {
+                        kernel_options.workflow = this.metadata['workflow'];
+                    }
                 }
 
                 this.last_msg_id = this.kernel.execute(this.get_text(), callbacks, kernel_options);

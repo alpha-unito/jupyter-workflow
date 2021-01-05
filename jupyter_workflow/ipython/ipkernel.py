@@ -43,7 +43,6 @@ class WorkflowIPythonKernel(IPythonKernel):
                 return metadata
             metadata['sf_token'] = self.shell.wf_cell_config.set(
                 {**workflow_config['workflow'], **{
-                    'model_name': workflow_config['cell_id'],
                     'step_id': parent['msg_id']
                 }})
         # Return metadata
