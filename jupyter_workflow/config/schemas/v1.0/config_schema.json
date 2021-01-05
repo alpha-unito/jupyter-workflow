@@ -18,23 +18,22 @@
             "file"
           ]
         },
+        "serializer": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "$ref": "#/definitions/serializer"
+            }
+          ]
+        },
         "value": {},
         "valueFrom": {
           "type": "string"
         }
       },
-      "oneOf": [
-        {
-          "required": [
-            "value"
-          ]
-        },
-        {
-          "required": [
-            "valueFrom"
-          ]
-        }
-      ],
       "additionalProperties": false
     },
     "serializer": {

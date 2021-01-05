@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import inspect
 import json
 import os
 import sys
@@ -9,6 +10,7 @@ from typing import MutableMapping, MutableSequence, Any, Tuple
 from typing import Optional, List
 
 import dill
+from IPython.core.compilerop import CachingCompiler
 from streamflow.core.utils import get_path_processor, random_name
 from streamflow.core.workflow import Command, Status
 from streamflow.core.workflow import Job, CommandOutput, Step
@@ -16,6 +18,14 @@ from streamflow.log_handler import logger
 from typing_extensions import Text
 
 from jupyter_workflow.ipython import executor
+
+
+class NameContext(object):
+
+    def __init__(self, name, **kwargs):
+        self.__name = name
+        for k, v in kwargs.items():
+            self.__dict__[k] = v
 
 
 class JupyterCommandOutput(CommandOutput):
@@ -35,9 +45,11 @@ class JupyterCommand(Command):
     def __init__(self,
                  step: Step,
                  ast_nodes: List[Tuple[ast.AST, Text]],
+                 compiler: CachingCompiler,
                  environment: MutableMapping[Text, Text],
                  interpreter: Text,
                  input_names: MutableSequence[Text],
+                 input_serializers: MutableMapping[Text, Any],
                  output_names: MutableSequence[Text],
                  user_ns: MutableMapping[Text, Any],
                  user_global_ns: MutableMapping[Text, Any],
@@ -47,9 +59,11 @@ class JupyterCommand(Command):
                  stdout: Optional[Text] = None):
         super().__init__(step)
         self.ast_nodes: List[Tuple[ast.AST, Text]] = ast_nodes
+        self.compiler: CachingCompiler = compiler
         self.environment: MutableMapping[Text, Text] = environment
         self.interpreter: Text = interpreter
         self.input_names: MutableSequence[Text] = input_names
+        self.input_serializers: MutableMapping[Text, Any] = input_serializers
         self.output_names: MutableSequence[Text] = output_names
         self.user_ns: MutableMapping[Text, Any] = user_ns
         self.user_global_ns: MutableMapping[Text, Any] = user_global_ns
@@ -72,6 +86,22 @@ class JupyterCommand(Command):
                     return dill.load(f)
         else:
             return {}
+
+    def _predump(self, namespace: MutableMapping[Text, Any]):
+        new_namespace = {}
+        for name in namespace:
+            if name in self.input_serializers and 'predump' in self.input_serializers[name]:
+                serialization_context = executor.prepare_ns(
+                    {name: namespace[name], 'NameContext': namespace['NameContext']})
+                predump_module = self.input_serializers[name]['predump']
+                for node in predump_module.body:
+                    mod = ast.Module([node], [])
+                    code_obj = self.compiler(mod, '', 'exec')
+                    exec(code_obj, {}, serialization_context)
+                new_namespace[name] = serialization_context[name]
+            else:
+                new_namespace[name] = namespace[name]
+        return new_namespace
 
     async def _serialize_to_remote_file(self, job: Job, element: Any) -> Text:
         with NamedTemporaryFile() as f:
@@ -104,16 +134,23 @@ class JupyterCommand(Command):
                 pass  # TODO: manipulate AST
         # Serialize AST nodes to remote resource
         code_path = await self._serialize_to_remote_file(job, self.ast_nodes)
-        # Vonfigure output fiel path
+        # Configure output fiel path
         path_processor = get_path_processor(self.step)
         output_path = path_processor.join(job.output_directory, random_name())
+        # Include the special NameContext class in namespaces
+        nc_module = self.compiler.ast_parse(inspect.getsource(NameContext), filename=__file__)
+        for node in nc_module.body:
+            mod = ast.Module([node], [])
+            code_obj = self.compiler(mod, '', 'exec')
+            exec(code_obj, self.user_global_ns, self.user_ns)
+        self.input_names.append('NameContext')
         # Serialize namespaces to remote resource
-        user_ns = {**self.user_ns, **updated_names}
+        user_ns = self._predump({**self.user_ns, **updated_names})
         user_ns_path = await self._serialize_to_remote_file(
             job,
             {k: v for k, v in user_ns.items() if k in self.input_names})
         if self.user_global_ns != self.user_ns:
-            user_global_ns = {**self.user_global_ns, **updated_names}
+            user_global_ns = self._predump({**self.user_global_ns, **updated_names})
             user_global_ns_path = await self._serialize_to_remote_file(
                 job,
                 {k: v for k, v in user_global_ns.items() if k in self.input_names})

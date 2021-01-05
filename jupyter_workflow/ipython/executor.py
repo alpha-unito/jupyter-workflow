@@ -13,7 +13,7 @@ from tempfile import NamedTemporaryFile
 from typing import Dict
 
 if sys.version_info > (3, 8):
-    from ast import Module
+    from ast import Module, PyCF_ONLY_AST
 else:
     from ast import Module as OriginalModule
 
@@ -59,15 +59,6 @@ def _deserialize(path, default=None):
 def compare(code_obj):
     is_async = (inspect.CO_COROUTINE & code_obj.co_flags == inspect.CO_COROUTINE)
     return is_async
-
-
-class NameContainer(object):
-    __slots__ = ('name', 'args', 'kwargs')
-
-    def __init__(self, name, *args, **kwargs):
-        self.name = name
-        self.args = args
-        self.kwargs = kwargs
 
 
 class RemoteCompiler(codeop.Compile):

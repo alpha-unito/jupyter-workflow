@@ -98,7 +98,11 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         self.wf_cell_config: ContextVar[MutableMapping[Text, Any]] = ContextVar('wf_cell_config', default={})
         self.sys_excepthook = None
 
-    async def _build_file_port(self, job: Job, name: Text, step: Step, element: MutableMapping[Text, Text]):
+    async def _build_file_port(self,
+                               job: Job,
+                               name: Text,
+                               step: Step,
+                               element: MutableMapping[Text, Text]):
         port_name = name or utils.random_name()
         output_port = DefaultOutputPort(name=port_name)
         output_port.step = job.step
@@ -165,6 +169,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         autoin = cell_config['step'].get('autoin', True)
         environment = {}
         input_names = self._extract_dependencies(cell_name, compiler, ast_nodes) if autoin else []
+        input_serializers = {}
         for element in cell_inputs:
             # If is a string, it refers to the name of a variable
             if isinstance(element, Text):
@@ -189,7 +194,13 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 # If type is equal to `name`, it refers to a variable
                 elif element_type == 'name':
                     input_names.append(element['name'])
-                # Put each additional dependency not related to variables as env variables
+                    if 'serializer' in element:
+                        serializer = (cell_config['serializers'][element['serializer']]
+                                      if isinstance(element['serializer'], Text)
+                                      else element['serializer'])
+                        input_serializers[element['name']] = {
+                            k: compiler.ast_parse(v, filename=cell_name) for k, v in serializer.items()}
+                        # Put each additional dependency not related to variables as env variables
                 elif element_type == 'env':
                     environment[element['name']] = element['value']
         # If outputs are defined for the current cell
@@ -230,9 +241,11 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         step.command = JupyterCommand(
             step=step,
             ast_nodes=ast_nodes,
+            compiler=compiler,
             environment=environment,
             interpreter=interpreter,
             input_names=input_names,
+            input_serializers=input_serializers,
             output_names=output_names,
             user_ns=self.user_ns,
             user_global_ns=self.user_global_ns,
