@@ -124,7 +124,8 @@
   "properties": {
     "interpreter": {
       "$id": "#/properties/interpreter",
-      "type": "string"
+      "type": "string",
+      "default": "ipython"
     },
     "models": {
       "$id": "#/properties/models",

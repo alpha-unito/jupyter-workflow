@@ -135,6 +135,8 @@ class JupyterCommand(Command):
                                 for k, v in self.input_serializers.items() if 'postload' in v}
         # Parse command
         cmd = [self.interpreter, executor_path]
+        if self.interpreter == 'ipython':
+            cmd.append('--')
         if self.autoawait:
             cmd.append("--autoawait")
         cmd.extend(["--local-ns-file", user_ns_path])

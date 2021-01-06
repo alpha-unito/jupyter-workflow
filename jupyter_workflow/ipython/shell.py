@@ -79,7 +79,8 @@ class DependenciesRetriever(ast.NodeVisitor):
 
     def visit_Name(self, node):
         if isinstance(node.ctx, ast.Load) and node.id not in self.names:
-            if node.id in self.user_ns or node.id in self.user_global_ns:
+            # Skip the 'get_ipython' dependency as it is not serialisable
+            if node.id != 'get_ipython' and (node.id in self.user_ns or node.id in self.user_global_ns):
                 self.deps.append(node.id)
         self.names.append(node.id)
         self.generic_visit(node)
@@ -153,7 +154,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             default=str).encode('ascii')).hexdigest()
         target = _build_target(model_name, target)
         # Extract Python interpreter from metadata
-        interpreter = cell_config.get('interpreter', 'python')
+        interpreter = cell_config.get('interpreter', 'ipython')
         # Create a step structure
         step = BaseStep(
             name=cell_config['step_id'],

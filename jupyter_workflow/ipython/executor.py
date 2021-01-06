@@ -117,6 +117,8 @@ def prepare_ns(namespace: Dict) -> Dict:
     namespace.setdefault('__name__', '__main__')
     namespace.setdefault('__builtin__', builtins)
     namespace.setdefault('__builtins__', builtins)
+    if 'get_ipython' in locals():
+        namespace.setdefault('get_ipython', locals()['get_ipython'])
     return namespace
 
 
