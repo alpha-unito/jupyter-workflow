@@ -13,7 +13,7 @@ from tempfile import NamedTemporaryFile
 from typing import Dict
 
 if sys.version_info > (3, 8):
-    from ast import Module, PyCF_ONLY_AST
+    from ast import Module
 else:
     from ast import Module as OriginalModule
 
@@ -45,6 +45,7 @@ parser.add_argument('output_file', metavar='JF_CELL_OUTPUT')
 parser.add_argument('--autoawait', action='store_true')
 parser.add_argument('--local-ns-file', nargs='?')
 parser.add_argument('--global-ns-file', nargs='?')
+parser.add_argument('--postload-input-serializers', nargs='?')
 parser.add_argument('--output-name', action='append')
 
 
@@ -61,7 +62,46 @@ def compare(code_obj):
     return is_async
 
 
+def postload(compiler, namespace, serializers):
+    new_namespace = {}
+    for name in namespace:
+        if name in serializers and 'postload' in serializers[name]:
+            serialization_context = prepare_ns({name: namespace[name]})
+            postload_module = compiler.ast_parse(
+                source=serializers[name]['postload'],
+                filename='{name}.postload'.format(name=name))
+            for node in postload_module.body:
+                mod = Module([node], [])
+                code_obj = compiler(mod, '', 'exec')
+                exec(code_obj, {}, serialization_context)
+            new_namespace[name] = serialization_context[name]
+        else:
+            new_namespace[name] = namespace[name]
+    return new_namespace
+
+
+def predump(compiler, namespace, serializers):
+    new_namespace = {}
+    for name in namespace:
+        if name in serializers and 'predump' in serializers[name]:
+            serialization_context = prepare_ns({name: namespace[name]})
+            predump_module = compiler.ast_parse(
+                source=serializers[name]['predump'],
+                filename='{name}.predump'.format(name=name))
+            for node in predump_module.body:
+                mod = Module([node], [])
+                code_obj = compiler(mod, '', 'exec')
+                exec(code_obj, {}, serialization_context)
+            new_namespace[name] = serialization_context[name]
+        else:
+            new_namespace[name] = namespace[name]
+    return new_namespace
+
+
 class RemoteCompiler(codeop.Compile):
+
+    def ast_parse(self, source, filename='<unknown>', symbol='exec'):
+        return compile(source, filename, symbol, self.flags | ast.PyCF_ONLY_AST, 1)
 
     @contextmanager
     def extra_flags(self, flags):
@@ -89,7 +129,15 @@ async def run_code(args):
             # Deserialize elements
             ast_nodes = _deserialize(args.code_file)
             user_ns = prepare_ns(_deserialize(args.local_ns_file, {}))
-            user_global_ns = prepare_ns(_deserialize(args.global_ns_file, user_ns))
+            user_global_ns = _deserialize(args.global_ns_file, user_ns)
+            if user_global_ns != user_ns:
+                user_global_ns = prepare_ns(user_global_ns)
+            # Apply postload serialization hooks if present
+            if args.postload_input_serializers:
+                postload_input_serializers = _deserialize(args.postload_input_serializers)
+                if user_global_ns != user_ns:
+                    user_global_ns = postload(compiler, user_global_ns, postload_input_serializers)
+                user_ns = postload(compiler, user_ns, postload_input_serializers)
             # Exec cell code
             for node, mode in ast_nodes:
                 if mode == 'exec':

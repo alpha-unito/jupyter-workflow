@@ -195,11 +195,9 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 elif element_type == 'name':
                     input_names.append(element['name'])
                     if 'serializer' in element:
-                        serializer = (cell_config['serializers'][element['serializer']]
-                                      if isinstance(element['serializer'], Text)
-                                      else element['serializer'])
-                        input_serializers[element['name']] = {
-                            k: compiler.ast_parse(v, filename=cell_name) for k, v in serializer.items()}
+                        input_serializers[element['name']] = (cell_config['serializers'][element['serializer']]
+                                                              if isinstance(element['serializer'], Text)
+                                                              else element['serializer'])
                         # Put each additional dependency not related to variables as env variables
                 elif element_type == 'env':
                     environment[element['name']] = element['value']

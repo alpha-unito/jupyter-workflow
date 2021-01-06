@@ -1,6 +1,5 @@
 import ast
 import asyncio
-import inspect
 import json
 import os
 import sys
@@ -18,14 +17,6 @@ from streamflow.log_handler import logger
 from typing_extensions import Text
 
 from jupyter_workflow.ipython import executor
-
-
-class NameContext(object):
-
-    def __init__(self, name, **kwargs):
-        self.__name = name
-        for k, v in kwargs.items():
-            self.__dict__[k] = v
 
 
 class JupyterCommandOutput(CommandOutput):
@@ -87,22 +78,6 @@ class JupyterCommand(Command):
         else:
             return {}
 
-    def _predump(self, namespace: MutableMapping[Text, Any]):
-        new_namespace = {}
-        for name in namespace:
-            if name in self.input_serializers and 'predump' in self.input_serializers[name]:
-                serialization_context = executor.prepare_ns(
-                    {name: namespace[name], 'NameContext': namespace['NameContext']})
-                predump_module = self.input_serializers[name]['predump']
-                for node in predump_module.body:
-                    mod = ast.Module([node], [])
-                    code_obj = self.compiler(mod, '', 'exec')
-                    exec(code_obj, {}, serialization_context)
-                new_namespace[name] = serialization_context[name]
-            else:
-                new_namespace[name] = namespace[name]
-        return new_namespace
-
     async def _serialize_to_remote_file(self, job: Job, element: Any) -> Text:
         with NamedTemporaryFile() as f:
             dill.dump(element, f, recurse=True)
@@ -137,25 +112,27 @@ class JupyterCommand(Command):
         # Configure output fiel path
         path_processor = get_path_processor(self.step)
         output_path = path_processor.join(job.output_directory, random_name())
-        # Include the special NameContext class in namespaces
-        nc_module = self.compiler.ast_parse(inspect.getsource(NameContext), filename=__file__)
-        for node in nc_module.body:
-            mod = ast.Module([node], [])
-            code_obj = self.compiler(mod, '', 'exec')
-            exec(code_obj, self.user_global_ns, self.user_ns)
-        self.input_names.append('NameContext')
         # Serialize namespaces to remote resource
-        user_ns = self._predump({**self.user_ns, **updated_names})
+        user_ns = executor.predump(
+            compiler=self.compiler,
+            namespace={**self.user_ns, **updated_names},
+            serializers=self.input_serializers)
         user_ns_path = await self._serialize_to_remote_file(
             job,
             {k: v for k, v in user_ns.items() if k in self.input_names})
         if self.user_global_ns != self.user_ns:
-            user_global_ns = self._predump({**self.user_global_ns, **updated_names})
+            user_global_ns = executor.predump(
+                compiler=self.compiler,
+                namespace={**self.user_global_ns, **updated_names},
+                serializers=self.input_serializers)
             user_global_ns_path = await self._serialize_to_remote_file(
                 job,
                 {k: v for k, v in user_global_ns.items() if k in self.input_names})
         else:
             user_global_ns_path = None
+        # Create a dictionary of postload input serializers
+        postload_serializers = {k: {'postload': v['postload']}
+                                for k, v in self.input_serializers.items() if 'postload' in v}
         # Parse command
         cmd = [self.interpreter, executor_path]
         if self.autoawait:
@@ -163,6 +140,9 @@ class JupyterCommand(Command):
         cmd.extend(["--local-ns-file", user_ns_path])
         if user_global_ns_path is not None:
             cmd.extend(["--global-ns-file", user_global_ns_path])
+        if postload_serializers:
+            postload_serializers_path = await self._serialize_to_remote_file(job, postload_serializers)
+            cmd.extend(["--postload-input-serializers", postload_serializers_path])
         for name in self.output_names:
             cmd.extend(["--output-name", name])
         cmd.extend([code_path, output_path])
