@@ -47,7 +47,13 @@
           "type": "string"
         },
         "type": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "env",
+            "name",
+            "file"
+          ],
+          "default": "name"
         }
       }
     },

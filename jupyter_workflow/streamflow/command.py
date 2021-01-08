@@ -10,6 +10,7 @@ from typing import Optional, List
 
 import dill
 from IPython.core.compilerop import CachingCompiler
+from streamflow.core.exception import WorkflowExecutionException
 from streamflow.core.utils import get_path_processor, random_name
 from streamflow.core.workflow import Command, Status
 from streamflow.core.workflow import Job, CommandOutput, Step
@@ -115,11 +116,19 @@ class JupyterCommand(Command):
         # Serialize namespaces to remote resource
         user_ns = executor.predump(
             compiler=self.compiler,
-            namespace={**self.user_ns, **updated_names},
+            namespace={k: v for k, v in {**self.user_ns, **updated_names}.items() if k in self.input_names},
             serializers=self.input_serializers)
-        user_ns_path = await self._serialize_to_remote_file(
-            job,
-            {k: v for k, v in user_ns.items() if k in self.input_names})
+        for name, value in user_ns.items():
+            if name in self.input_serializers:
+                intermediate_type = self.input_serializers[name].get('type', 'name')
+                if intermediate_type == 'file':
+                    user_ns[name] = await self._transfer_file(job, value)
+        try:
+            user_ns_path = await self._serialize_to_remote_file(job, user_ns)
+        except:
+            for k, v in user_ns.items():
+                if not dill.pickles(v, safe=True):
+                    raise WorkflowExecutionException("Name {name} is not serializable".format(name=k))
         if self.user_global_ns != self.user_ns:
             user_global_ns = executor.predump(
                 compiler=self.compiler,
