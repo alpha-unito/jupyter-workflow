@@ -43,6 +43,7 @@ class JupyterCommand(Command):
                  input_names: MutableSequence[Text],
                  input_serializers: MutableMapping[Text, Any],
                  output_names: MutableSequence[Text],
+                 output_serializers: MutableMapping[Text, Any],
                  user_ns: MutableMapping[Text, Any],
                  user_global_ns: MutableMapping[Text, Any],
                  autoawait: bool,
@@ -57,6 +58,7 @@ class JupyterCommand(Command):
         self.input_names: MutableSequence[Text] = input_names
         self.input_serializers: MutableMapping[Text, Any] = input_serializers
         self.output_names: MutableSequence[Text] = output_names
+        self.output_serializers: MutableMapping[Text, Any] = output_serializers
         self.user_ns: MutableMapping[Text, Any] = user_ns
         self.user_global_ns: MutableMapping[Text, Any] = user_global_ns
         self.autoawait: bool = autoawait
@@ -75,9 +77,42 @@ class JupyterCommand(Command):
                     dst=dest_path,
                     dst_job=None)
                 with open(dest_path, 'rb') as f:
-                    return dill.load(f)
+                    namespace = dill.load(f)
+                for name, value in namespace.items():
+                    if name in self.output_serializers:
+                        intermediate_type = self.output_serializers[name].get('type', 'name')
+                        if intermediate_type == 'file':
+                            dest_path = os.path.join(d, path_processor.basename(namespace[name]))
+                            await self.step.context.data_manager.transfer_data(
+                                src=namespace[name],
+                                src_job=job,
+                                dst=dest_path,
+                                dst_job=None)
+                            namespace[name] = dest_path
+                return executor.postload(
+                    compiler=self.compiler,
+                    namespace=namespace,
+                    serializers=self.output_serializers)
         else:
             return {}
+
+    async def _serialize_namespace(self, job: Job, namespace: MutableMapping[Text, Any]) -> Text:
+        namespace = executor.predump(
+            compiler=self.compiler,
+            namespace=namespace,
+            serializers=self.input_serializers)
+        for name, value in namespace.items():
+            if name in self.input_serializers:
+                intermediate_type = self.input_serializers[name].get('type', 'name')
+                if intermediate_type == 'file':
+                    namespace[name] = await self._transfer_file(job, value)
+        try:
+            return await self._serialize_to_remote_file(job, namespace)
+        except BaseException:
+            for k, v in namespace.items():
+                if not dill.pickles(v, safe=True):
+                    raise WorkflowExecutionException("Name {name} is not serializable".format(name=k))
+            raise
 
     async def _serialize_to_remote_file(self, job: Job, element: Any) -> Text:
         with NamedTemporaryFile() as f:
@@ -114,34 +149,20 @@ class JupyterCommand(Command):
         path_processor = get_path_processor(self.step)
         output_path = path_processor.join(job.output_directory, random_name())
         # Serialize namespaces to remote resource
-        user_ns = executor.predump(
-            compiler=self.compiler,
-            namespace={k: v for k, v in {**self.user_ns, **updated_names}.items() if k in self.input_names},
-            serializers=self.input_serializers)
-        for name, value in user_ns.items():
-            if name in self.input_serializers:
-                intermediate_type = self.input_serializers[name].get('type', 'name')
-                if intermediate_type == 'file':
-                    user_ns[name] = await self._transfer_file(job, value)
-        try:
-            user_ns_path = await self._serialize_to_remote_file(job, user_ns)
-        except:
-            for k, v in user_ns.items():
-                if not dill.pickles(v, safe=True):
-                    raise WorkflowExecutionException("Name {name} is not serializable".format(name=k))
+        user_ns_path = await self._serialize_namespace(
+            job=job,
+            namespace={k: v for k, v in {**self.user_ns, **updated_names}.items() if k in self.input_names})
         if self.user_global_ns != self.user_ns:
-            user_global_ns = executor.predump(
-                compiler=self.compiler,
-                namespace={**self.user_global_ns, **updated_names},
-                serializers=self.input_serializers)
-            user_global_ns_path = await self._serialize_to_remote_file(
-                job,
-                {k: v for k, v in user_global_ns.items() if k in self.input_names})
+            user_global_ns_path = await self._serialize_namespace(
+                job=job,
+                namespace={k: v for k, v in {**self.user_global_ns, **updated_names}.items() if k in self.input_names})
         else:
             user_global_ns_path = None
-        # Create a dictionary of postload input serializers
-        postload_serializers = {k: {'postload': v['postload']}
-                                for k, v in self.input_serializers.items() if 'postload' in v}
+        # Create dictionaries of postload input serializers and predump output serializers
+        postload_input_serializers = {k: {'postload': v['postload']}
+                                      for k, v in self.input_serializers.items() if 'postload' in v}
+        predump_output_serializers = {k: {'predump': v['predump']}
+                                      for k, v in self.output_serializers.items() if 'predump' in v}
         # Parse command
         cmd = [self.interpreter, executor_path]
         if self.interpreter == 'ipython':
@@ -151,9 +172,12 @@ class JupyterCommand(Command):
         cmd.extend(["--local-ns-file", user_ns_path])
         if user_global_ns_path is not None:
             cmd.extend(["--global-ns-file", user_global_ns_path])
-        if postload_serializers:
-            postload_serializers_path = await self._serialize_to_remote_file(job, postload_serializers)
+        if postload_input_serializers:
+            postload_serializers_path = await self._serialize_to_remote_file(job, postload_input_serializers)
             cmd.extend(["--postload-input-serializers", postload_serializers_path])
+        if predump_output_serializers:
+            predump_serializers_path = await self._serialize_to_remote_file(job, predump_output_serializers)
+            cmd.extend(["--predump-output-serializers", predump_serializers_path])
         for name in self.output_names:
             cmd.extend(["--output-name", name])
         cmd.extend([code_path, output_path])

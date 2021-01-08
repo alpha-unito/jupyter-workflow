@@ -46,6 +46,7 @@ parser.add_argument('--autoawait', action='store_true')
 parser.add_argument('--local-ns-file', nargs='?')
 parser.add_argument('--global-ns-file', nargs='?')
 parser.add_argument('--postload-input-serializers', nargs='?')
+parser.add_argument('--predump-output-serializers', nargs='?')
 parser.add_argument('--output-name', action='append')
 
 
@@ -55,6 +56,18 @@ def _deserialize(path, default=None):
             return dill.load(f)
     else:
         return default
+
+
+def _serialize(compiler, namespace, args):
+    if args.predump_output_serializers:
+        predump_output_serializers = _deserialize(args.predump_output_serializers)
+        namespace = predump(
+            compiler=compiler,
+            namespace={k: v for k, v in namespace.items() if k in args.output_name},
+            serializers=predump_output_serializers)
+    with NamedTemporaryFile(delete=False) as f:
+        dill.dump(namespace, f, recurse=True)
+        return f.name
 
 
 def compare(code_obj):
@@ -139,7 +152,9 @@ async def run_code(args):
                 postload_input_serializers = _deserialize(args.postload_input_serializers)
                 if user_global_ns != user_ns:
                     user_global_ns = postload(compiler, user_global_ns, postload_input_serializers)
-                user_ns = postload(compiler, user_ns, postload_input_serializers)
+                    user_ns = postload(compiler, user_ns, postload_input_serializers)
+                else:
+                    user_global_ns = user_ns = postload(compiler, user_ns, postload_input_serializers)
             # Exec cell code
             for node, mode in ast_nodes:
                 if mode == 'exec':
@@ -160,15 +175,11 @@ async def run_code(args):
             CELL_GLOBAL_NS: {}
         }
         if args.output_name:
-            # Serialize user namespace
-            with NamedTemporaryFile(delete=False) as f:
-                dill.dump({k: v for k, v in user_ns.items() if k in args.output_name}, f, recurse=True)
-                output[CELL_LOCAL_NS] = f.name
             # If global namespace is different from user namespace, serialize global namespace
             if user_global_ns != user_ns:
-                with NamedTemporaryFile(delete=False) as f:
-                    dill.dump({k: v for k, v in user_global_ns.items() if k in args.output_name}, f, recurse=True)
-                    output[CELL_GLOBAL_NS] = f.name
+                output[CELL_GLOBAL_NS] = _serialize(compiler, user_global_ns, args)
+            # Serialize user namespace
+            output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
     except BaseException:
         # Create output object
         output = {

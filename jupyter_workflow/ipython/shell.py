@@ -201,9 +201,15 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                                                               else element['serializer'])
                         # Put each additional dependency not related to variables as env variables
                 elif element_type == 'env':
-                    environment[element['name']] = element['value']
+                    if 'value' in element:
+                        environment[element['name']] = element['value']
+                    else:
+                        name = element['valueFrom']
+                        environment[element['name']] = (self.user_ns[name] if name in self.user_ns else
+                                                        self.user_global_ns[name])
         # If outputs are defined for the current cell
         output_names = []
+        output_serializers = {}
         if 'out' in cell_config['step']:
             for element in cell_config['step']['out']:
                 # If is a string, it refers to the name of a variable
@@ -231,6 +237,9 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                     # If type is equal to `name`, it refers to a variable
                     elif element_type == 'name':
                         output_names.append(element['name'])
+                        output_serializers[element['name']] = (cell_config['serializers'][element['serializer']]
+                                                               if isinstance(element['serializer'], Text)
+                                                               else element['serializer'])
         # Set input combinator for the step
         input_combinator = DotProductInputCombinator(utils.random_name())
         for port in step.input_ports.values():
@@ -246,6 +255,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             input_names=input_names,
             input_serializers=input_serializers,
             output_names=output_names,
+            output_serializers=output_serializers,
             user_ns=self.user_ns,
             user_global_ns=self.user_global_ns,
             autoawait=self.autoawait)
