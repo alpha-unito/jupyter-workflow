@@ -195,11 +195,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 # If type is equal to `name`, it refers to a variable
                 elif element_type == 'name':
                     input_names.append(element['name'])
-                    if 'serializer' in element:
-                        input_serializers[element['name']] = (cell_config['serializers'][element['serializer']]
-                                                              if isinstance(element['serializer'], Text)
-                                                              else element['serializer'])
-                        # Put each additional dependency not related to variables as env variables
+                # Put each additional dependency not related to variables as env variables
                 elif element_type == 'env':
                     if 'value' in element:
                         environment[element['name']] = element['value']
@@ -207,6 +203,12 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                         name = element['valueFrom']
                         environment[element['name']] = (self.user_ns[name] if name in self.user_ns else
                                                         self.user_global_ns[name])
+                # Add serializer if present
+                if 'serializer' in element:
+                    name = element.get('name') or element.get('valueFrom')
+                    input_serializers[name] = (cell_config['serializers'][element['serializer']]
+                                               if isinstance(element['serializer'], Text)
+                                               else element['serializer'])
         # If outputs are defined for the current cell
         output_names = []
         output_serializers = {}
@@ -237,9 +239,12 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                     # If type is equal to `name`, it refers to a variable
                     elif element_type == 'name':
                         output_names.append(element['name'])
-                        output_serializers[element['name']] = (cell_config['serializers'][element['serializer']]
-                                                               if isinstance(element['serializer'], Text)
-                                                               else element['serializer'])
+                # Add serializer if present
+                if 'serializer' in element:
+                    name = element.get('name') or element.get('valueFrom')
+                    output_serializers[name] = (cell_config['serializers'][element['serializer']]
+                                                if isinstance(element['serializer'], Text)
+                                                else element['serializer'])
         # Set input combinator for the step
         input_combinator = DotProductInputCombinator(utils.random_name())
         for port in step.input_ports.values():
