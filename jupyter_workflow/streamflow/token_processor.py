@@ -1,12 +1,16 @@
 import asyncio
+import builtins
 import os
-from typing import Any, Set, Text, Optional
+from typing import Any, Set, Text, Optional, MutableMapping
 
+import dill
+from IPython.core.compilerop import CachingCompiler
 from streamflow.core.utils import get_path_processor
 from streamflow.core.workflow import Job, Token, Port
 from streamflow.data import remotepath
 from streamflow.workflow.port import DefaultTokenProcessor
 
+from jupyter_workflow.ipython import executor
 from jupyter_workflow.streamflow.command import JupyterCommandOutput
 
 
@@ -16,11 +20,11 @@ class FileTokenProcessor(DefaultTokenProcessor):
                  port: Port,
                  name: Optional[Text] = None,
                  value: Optional[Text] = None,
-                 valueFrom: Optional[Text] = None):
+                 value_from: Optional[Text] = None):
         super().__init__(port)
         self.name: Optional[Text] = name
         self.value: Optional[Text] = value
-        self.valueFrom: Optional[Text] = valueFrom
+        self.value_from: Optional[Text] = value_from
 
     async def collect_output(self, token: Token, output_dir: Text) -> Token:
         context = self.port.step.context
@@ -42,10 +46,10 @@ class FileTokenProcessor(DefaultTokenProcessor):
 
     async def compute_token(self, job: Job, command_output: JupyterCommandOutput) -> Token:
         token_value = {
-            'name': self.name or self.valueFrom,
-            'src': (self.value or
-                    command_output.user_ns.get(self.valueFrom) or
-                    command_output.user_global_ns.get(self.valueFrom))
+            'name': self.name,
+            'type': 'file',
+            'src': (self.value if self.value is not None else
+                    command_output.user_ns.get(self.value_from))
         }
         return Token(name=self.port.name, value=token_value, job=job.name)
 
@@ -79,7 +83,7 @@ class FileTokenProcessor(DefaultTokenProcessor):
             src_job=None,
             dst=dest_path,
             dst_job=job)
-        return token.update({**token.value, **{'dst': dest_path}})
+        return token.update({**token.value, **{'dst': dill.dumps(dest_path)}})
 
     async def weight_token(self, job: Job, token_value: Any) -> int:
         if job is not None and job.get_resources():
@@ -89,3 +93,49 @@ class FileTokenProcessor(DefaultTokenProcessor):
             return 0
         else:
             return await remotepath.size(None, None, token_value) if token_value is not None else 0
+
+
+class NameTokenProcessor(DefaultTokenProcessor):
+
+    def __init__(self,
+                 port: Port,
+                 name: Text,
+                 token_type: Text,
+                 compiler: CachingCompiler,
+                 serializer: MutableMapping[Text, Any] = None,
+                 value: Optional[Text] = None,
+                 value_from: Optional[Text] = None):
+        super().__init__(port)
+        self.name: Text = name
+        self.token_type: Text = token_type
+        self.compiler: CachingCompiler = compiler
+        self.serializer: MutableMapping[Text, Any] = serializer
+        self.value: Optional[Text] = value
+        self.value_from: Optional[Text] = value_from
+
+    async def collect_output(self, token: Token, output_dir: Text) -> Token:
+        return token.update({
+            'name': self.name,
+            'type': self.token_type,
+            'serializer': self.serializer,
+            'value': executor.postload(
+                compiler=self.compiler,
+                name=self.name,
+                value=dill.loads(token.value['value']),
+                serializer=self.serializer)})
+
+    async def compute_token(self, job: Job, command_output: JupyterCommandOutput) -> Token:
+        token_value = {
+            'name': self.name,
+            'type': self.token_type,
+            'value': dill.dumps(executor.predump(
+                compiler=self.compiler,
+                name=self.name,
+                value=(self.value if self.value is not None else
+                       command_output.user_ns[self.value_from] if self.value_from in command_output.user_ns else
+                       builtins.__dict__.get(self.value_from)),
+                serializer=self.serializer), recurse=True)
+        }
+        if self.serializer is not None:
+            token_value['serializer'] = self.serializer
+        return Token(name=self.port.name, value=token_value, job=job.name)

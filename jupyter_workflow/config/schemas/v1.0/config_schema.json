@@ -3,39 +3,6 @@
   "$id": "config_schema.json",
   "type": "object",
   "definitions": {
-    "dependency": {
-      "$id": "#/definitions/dependency",
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "env",
-            "name",
-            "file"
-          ]
-        },
-        "serializer": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "object",
-              "$ref": "#/definitions/serializer"
-            }
-          ]
-        },
-        "value": {},
-        "valueFrom": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
     "serializer": {
       "$id": "#/definitions/serializer",
       "type": "object",
@@ -49,7 +16,6 @@
         "type": {
           "type": "string",
           "enum": [
-            "env",
             "name",
             "file"
           ],
@@ -70,11 +36,48 @@
               },
               {
                 "type": "object",
-                "$ref": "#/definitions/dependency"
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "scatter": {
+                    "type": "integer"
+                  },
+                  "serializer": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "$ref": "#/definitions/serializer"
+                      }
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "control",
+                      "env",
+                      "name",
+                      "file"
+                    ],
+                    "default": "name"
+                  },
+                  "value": {},
+                  "valueFrom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
               }
             ]
           },
           "uniqueItems": true
+        },
+        "autoin": {
+          "type": "boolean",
+          "default": true
         },
         "out": {
           "type": "array",
@@ -85,7 +88,37 @@
               },
               {
                 "type": "object",
-                "$ref": "#/definitions/dependency"
+                "properties": {
+                  "gather": {
+                    "strategy": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "serializer": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "$ref": "#/definitions/serializer"
+                      }
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "name",
+                      "file"
+                    ],
+                    "default": "name"
+                  },
+                  "valueFrom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
               }
             ]
           },

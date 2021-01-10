@@ -10,7 +10,7 @@ import sys
 import traceback
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
 from tempfile import NamedTemporaryFile
-from typing import Dict
+from typing import Dict, MutableSequence
 
 if sys.version_info > (3, 8):
     from ast import Module
@@ -23,7 +23,6 @@ else:
 
 CELL_OUTPUT = '__JF_CELL_OUTPUT__'
 CELL_LOCAL_NS = '__JF_CELL_LOCAL_NS__'
-CELL_GLOBAL_NS = '__JF_CELL_GLOBAL_NS__'
 
 # Import dill or install it
 try:
@@ -44,7 +43,6 @@ parser.add_argument('code_file', metavar='JF_CELL_CODE')
 parser.add_argument('output_file', metavar='JF_CELL_OUTPUT')
 parser.add_argument('--autoawait', action='store_true')
 parser.add_argument('--local-ns-file', nargs='?')
-parser.add_argument('--global-ns-file', nargs='?')
 parser.add_argument('--postload-input-serializers', nargs='?')
 parser.add_argument('--predump-output-serializers', nargs='?')
 parser.add_argument('--output-name', action='append')
@@ -61,10 +59,11 @@ def _deserialize(path, default=None):
 def _serialize(compiler, namespace, args):
     if args.predump_output_serializers:
         predump_output_serializers = _deserialize(args.predump_output_serializers)
-        namespace = predump(
+        namespace = {k: predump(
             compiler=compiler,
-            namespace={k: v for k, v in namespace.items() if k in args.output_name},
-            serializers=predump_output_serializers)
+            name=k,
+            value=v,
+            serializer=predump_output_serializers.get(k)) for k, v in namespace.items() if k in args.output_name}
     with NamedTemporaryFile(delete=False) as f:
         dill.dump(namespace, f, recurse=True)
         return f.name
@@ -75,40 +74,34 @@ def compare(code_obj):
     return is_async
 
 
-def postload(compiler, namespace, serializers):
-    new_namespace = {}
-    for name in namespace:
-        if name in serializers and 'postload' in serializers[name]:
-            serialization_context = prepare_ns({name: namespace[name]})
-            postload_module = compiler.ast_parse(
-                source=serializers[name]['postload'],
-                filename='{name}.postload'.format(name=name))
-            for node in postload_module.body:
-                mod = Module([node], [])
-                code_obj = compiler(mod, '', 'exec')
-                exec(code_obj, {}, serialization_context)
-            new_namespace[name] = serialization_context[name]
-        else:
-            new_namespace[name] = namespace[name]
-    return new_namespace
+def postload(compiler, name, value, serializer):
+    if serializer is not None and 'postload' in serializer:
+        serialization_context = prepare_ns({name: value})
+        postload_module = compiler.ast_parse(
+            source=serializer['postload'],
+            filename='{name}.postload'.format(name=name))
+        for node in postload_module.body:
+            mod = Module([node], [])
+            code_obj = compiler(mod, '', 'exec')
+            exec(code_obj, {}, serialization_context)
+        return serialization_context[name]
+    else:
+        return value
 
 
-def predump(compiler, namespace, serializers):
-    new_namespace = {}
-    for name in namespace:
-        if name in serializers and 'predump' in serializers[name]:
-            serialization_context = prepare_ns({name: namespace[name]})
-            predump_module = compiler.ast_parse(
-                source=serializers[name]['predump'],
-                filename='{name}.predump'.format(name=name))
-            for node in predump_module.body:
-                mod = Module([node], [])
-                code_obj = compiler(mod, '', 'exec')
-                exec(code_obj, {}, serialization_context)
-            new_namespace[name] = serialization_context[name]
-        else:
-            new_namespace[name] = namespace[name]
-    return new_namespace
+def predump(compiler, name, value, serializer):
+    if serializer is not None and 'predump' in serializer:
+        serialization_context = prepare_ns({name: value})
+        predump_module = compiler.ast_parse(
+            source=serializer['predump'],
+            filename='{name}.predump'.format(name=name))
+        for node in predump_module.body:
+            mod = Module([node], [])
+            code_obj = compiler(mod, '', 'exec')
+            exec(code_obj, {}, serialization_context)
+        return serialization_context[name]
+    else:
+        return value
 
 
 class RemoteCompiler(codeop.Compile):
@@ -136,6 +129,7 @@ def prepare_ns(namespace: Dict) -> Dict:
 
 
 async def run_code(args):
+    output = {CELL_LOCAL_NS: {}}
     try:
         command_output, command_error = io.StringIO(), io.StringIO()
         with redirect_stdout(command_output), redirect_stderr(command_error):
@@ -143,18 +137,16 @@ async def run_code(args):
             compiler = RemoteCompiler()
             # Deserialize elements
             ast_nodes = _deserialize(args.code_file)
-            user_ns = prepare_ns(_deserialize(args.local_ns_file, {}))
-            user_global_ns = _deserialize(args.global_ns_file, user_ns)
-            if user_global_ns != user_ns:
-                user_global_ns = prepare_ns(user_global_ns)
+            user_ns = prepare_ns({k: dill.loads(v) for k, v in _deserialize(args.local_ns_file, {}).items()})
             # Apply postload serialization hooks if present
             if args.postload_input_serializers:
                 postload_input_serializers = _deserialize(args.postload_input_serializers)
-                if user_global_ns != user_ns:
-                    user_global_ns = postload(compiler, user_global_ns, postload_input_serializers)
-                    user_ns = postload(compiler, user_ns, postload_input_serializers)
-                else:
-                    user_global_ns = user_ns = postload(compiler, user_ns, postload_input_serializers)
+                user_ns = {k: postload(
+                    compiler=compiler,
+                    name=k,
+                    value=v,
+                    serializer=postload_input_serializers.get(k)
+                ) for k, v in user_ns.items()}
             # Exec cell code
             for node, mode in ast_nodes:
                 if mode == 'exec':
@@ -165,31 +157,20 @@ async def run_code(args):
                     code_obj = compiler(mod, '', mode)
                     asynchronous = compare(code_obj)
                 if asynchronous:
-                    await eval(code_obj, user_global_ns, user_ns)
+                    await eval(code_obj, user_ns, user_ns)
                 else:
-                    exec(code_obj, user_global_ns, user_ns)
-        # Create output object
-        output = {
-            CELL_OUTPUT: command_output.getvalue().strip(),
-            CELL_LOCAL_NS: {},
-            CELL_GLOBAL_NS: {}
-        }
+                    exec(code_obj, user_ns, user_ns)
+        # Populate output object
+        output[CELL_OUTPUT] = command_output.getvalue().strip(),
         if args.output_name:
-            # If global namespace is different from user namespace, serialize global namespace
-            if user_global_ns != user_ns:
-                output[CELL_GLOBAL_NS] = _serialize(compiler, user_global_ns, args)
-            # Serialize user namespace
             output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
     except BaseException:
-        # Create output object
-        output = {
-            CELL_OUTPUT: traceback.format_exc(),
-            CELL_LOCAL_NS: {},
-            CELL_GLOBAL_NS: {}
-        }
-    # Save output json to file
-    with open(args.output_file, 'w') as f:
-        f.write(json.dumps(output))
+        # Populate output object
+        output[CELL_OUTPUT] = traceback.format_exc()
+    finally:
+        # Save output json to file
+        with open(args.output_file, 'w') as f:
+            f.write(json.dumps(output))
 
 
 def main(args):

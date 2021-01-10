@@ -4,40 +4,28 @@ import os
 import sys
 import tempfile
 from contextvars import ContextVar
-from typing import MutableMapping, Any, Optional, List, Tuple
+from typing import MutableMapping, Any, List, Tuple
 
 import IPython
-import dill
 from IPython.core.interactiveshell import softspace
 from ipykernel.zmqshell import ZMQInteractiveShell
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.workflow import Step
+from streamflow.core.workflow import Step, Job, Status, TerminationToken
 from streamflow.data.data_manager import DefaultDataManager
 from streamflow.deployment.deployment_manager import DefaultDeploymentManager
 from streamflow.recovery.checkpoint_manager import DummyCheckpointManager
 from streamflow.recovery.failure_manager import DummyFailureManager
 from streamflow.scheduling.policy import DataLocalityPolicy
 from streamflow.scheduling.scheduler import DefaultScheduler
-from streamflow.workflow.step import BaseStep
+from streamflow.workflow.port import DefaultOutputPort
+from streamflow.workflow.step import BaseStep, BaseJob
 from traitlets import observe
 from typing_extensions import Text
 
-from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebook, JupyterNotebookTranslator
-
-
-async def _collect_namespace(step: Step,
-                             output_retriever: Step,
-                             port_name: Text,
-                             output_dir: Text) -> Optional[MutableMapping[Text, Any]]:
-    ns_token = await step.output_ports[port_name].get(output_retriever)
-    if ns_token.value is not None:
-        token_processor = step.output_ports[port_name].token_processor
-        ns_token = await token_processor.collect_output(ns_token, output_dir)
-        with open(ns_token.value, mode="rb") as f:
-            return dill.load(f, encoding="bytes")
-    else:
-        return None
+from jupyter_workflow.ipython import executor
+from jupyter_workflow.streamflow.command import JupyterCommandOutput
+from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator
 
 
 class StreamFlowInteractiveShell(ZMQInteractiveShell):
@@ -53,6 +41,20 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         self.wf_cell_config: ContextVar[MutableMapping[Text, Any]] = ContextVar('wf_cell_config', default={})
         self.sys_excepthook = None
 
+    async def _inject_inputs(self, step: Step, job: Job):
+        for port_name, port in step.input_ports.items():
+            if port.dependee is None:
+                output_port = DefaultOutputPort(name=port_name)
+                output_port.step = step
+                output_port.token_processor = port.token_processor
+                command_output = JupyterCommandOutput(
+                    value=None,
+                    status=Status.COMPLETED,
+                    user_ns=self.user_ns)
+                output_port.put(await output_port.token_processor.compute_token(job, command_output))
+                output_port.put(TerminationToken(port_name))
+                port.dependee = output_port
+
     async def _run_with_streamflow(self,
                                    cell_name: Text,
                                    compiler,
@@ -64,36 +66,37 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             code=ast_nodes,
             compiler=compiler,
             metadata=cell_config)
-        translator = JupyterNotebookTranslator(
-            context=self.context,
-            user_ns=self.user_ns,
-            user_global_ns=self.user_global_ns)
+        translator = JupyterNotebookTranslator(context=self.context)
         step = await translator.translate_cell(
             cell=cell,
             autoawait=self.autoawait,
             metadata=cell_config)
+        # Inject inputs
+        input_injector = BaseJob(
+            name=utils.random_name(),
+            step=BaseStep(utils.random_name(), self.context),
+            inputs=[])
+        await self._inject_inputs(step=step, job=input_injector)
         # Execute the step
         await step.run()
-        # Update namespaces
-        if self.user_global_ns != self.user_ns:
-            self.user_global_ns.update(step.command.user_global_ns)
-        self.user_ns.update(step.command.user_ns)
         # Retrieve output
-        output_retriever = BaseStep(utils.random_name(), self.context)
-        updated_names = {}
+        output_retriever = utils.random_name()
+        output_names = {}
         d = tempfile.mkdtemp()
         for port_name, port in step.output_ports.items():
             token_processor = step.output_ports[port_name].token_processor
             token = await step.output_ports[port_name].get(output_retriever)
             token = await token_processor.collect_output(token, d)
-            if 'name' in token.value:
-                updated_names[token.value['name']] = token.value['dst']
-            else:
-                pass  # TODO: manipulate AST
+            token_type = token.value['type']
+            if token_type == 'file':
+                if 'name' in token.value:
+                    output_names[token.value['name']] = token.value['dst']
+                else:
+                    pass  # TODO: manipulate AST
+            elif token_type == 'name':
+                output_names[token.value['name']] = token.value['value']
         # Update namespaces
-        if self.user_global_ns != self.user_ns:
-            self.user_global_ns.update(updated_names)
-        self.user_ns.update(updated_names)
+        self.user_ns.update(output_names)
 
     @observe('exit_now')
     def _update_exit_now(self, change):

@@ -4,8 +4,8 @@ import json
 import os
 import sys
 from asyncio.subprocess import STDOUT
-from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import MutableMapping, MutableSequence, Any, Tuple
+from tempfile import NamedTemporaryFile, TemporaryDirectory, mkdtemp
+from typing import MutableMapping, Any, Tuple, MutableSequence
 from typing import Optional, List
 
 import dill
@@ -25,11 +25,9 @@ class JupyterCommandOutput(CommandOutput):
     def __init__(self,
                  value: Any,
                  status: Status,
-                 user_ns: MutableMapping[Text, Any],
-                 user_global_ns: Optional[MutableMapping[Text, Any]] = None):
+                 user_ns: MutableMapping[Text, Any]):
         super().__init__(value, status)
         self.user_ns: MutableMapping[Text, Any] = user_ns
-        self.user_global_ns: Optional[MutableMapping[Text, Any]] = user_global_ns
 
 
 class JupyterCommand(Command):
@@ -38,14 +36,9 @@ class JupyterCommand(Command):
                  step: Step,
                  ast_nodes: List[Tuple[ast.AST, Text]],
                  compiler: CachingCompiler,
-                 environment: MutableMapping[Text, Text],
                  interpreter: Text,
-                 input_names: MutableSequence[Text],
                  input_serializers: MutableMapping[Text, Any],
-                 output_names: MutableSequence[Text],
                  output_serializers: MutableMapping[Text, Any],
-                 user_ns: MutableMapping[Text, Any],
-                 user_global_ns: MutableMapping[Text, Any],
                  autoawait: bool,
                  stderr: Optional[Text] = None,
                  stdin: Optional[Text] = None,
@@ -53,14 +46,9 @@ class JupyterCommand(Command):
         super().__init__(step)
         self.ast_nodes: List[Tuple[ast.AST, Text]] = ast_nodes
         self.compiler: CachingCompiler = compiler
-        self.environment: MutableMapping[Text, Text] = environment
         self.interpreter: Text = interpreter
-        self.input_names: MutableSequence[Text] = input_names
         self.input_serializers: MutableMapping[Text, Any] = input_serializers
-        self.output_names: MutableSequence[Text] = output_names
         self.output_serializers: MutableMapping[Text, Any] = output_serializers
-        self.user_ns: MutableMapping[Text, Any] = user_ns
-        self.user_global_ns: MutableMapping[Text, Any] = user_global_ns
         self.autoawait: bool = autoawait
         self.stderr: Optional[Text] = stderr
         self.stdin: Optional[Text] = stdin
@@ -82,30 +70,28 @@ class JupyterCommand(Command):
                     if name in self.output_serializers:
                         intermediate_type = self.output_serializers[name].get('type', 'name')
                         if intermediate_type == 'file':
-                            dest_path = os.path.join(d, path_processor.basename(namespace[name]))
+                            dest_path = os.path.join(mkdtemp(), path_processor.basename(namespace[name]))
                             await self.step.context.data_manager.transfer_data(
                                 src=namespace[name],
                                 src_job=job,
                                 dst=dest_path,
                                 dst_job=None)
                             namespace[name] = dest_path
-                return executor.postload(
+                return {k: executor.postload(
                     compiler=self.compiler,
-                    namespace=namespace,
-                    serializers=self.output_serializers)
+                    name=k,
+                    value=v,
+                    serializer=self.output_serializers.get(k)
+                ) for k, v in namespace.items()}
         else:
             return {}
 
     async def _serialize_namespace(self, job: Job, namespace: MutableMapping[Text, Any]) -> Text:
-        namespace = executor.predump(
-            compiler=self.compiler,
-            namespace=namespace,
-            serializers=self.input_serializers)
         for name, value in namespace.items():
             if name in self.input_serializers:
                 intermediate_type = self.input_serializers[name].get('type', 'name')
                 if intermediate_type == 'file':
-                    namespace[name] = await self._transfer_file(job, value)
+                    namespace[name] = dill.dumps(await self._transfer_file(job, dill.loads(value)))
         try:
             return await self._serialize_to_remote_file(job, namespace)
         except BaseException:
@@ -136,28 +122,29 @@ class JupyterCommand(Command):
         executor_path = await self._transfer_file(
             job,
             os.path.join(executor.__file__))
-        # Modify code and namespaces according to inputs
-        updated_names = {}
-        for element in [t.value for t in job.inputs]:
-            if 'name' in element:
-                updated_names[element['name']] = element['dst']
-            else:
-                pass  # TODO: manipulate AST
+        # Modify code, environment and namespaces according to inputs
+        input_names = {}
+        environment = {}
+        for element in [t.value for t in job.inputs if t.value is not None]:
+            element_type = element['type']
+            if element_type == 'file':
+                if 'name' in element:
+                    input_names[element['name']] = element['dst']
+                else:
+                    pass  # TODO: manipulate AST
+            elif element_type == 'name':
+                input_names[element['name']] = element['value']
+            elif element_type == 'env':
+                environment[element['name']] = element['value']
+        # List output names to be retrieved from remote context
+        output_names = self.step.output_ports.keys()
         # Serialize AST nodes to remote resource
         code_path = await self._serialize_to_remote_file(job, self.ast_nodes)
         # Configure output fiel path
         path_processor = get_path_processor(self.step)
         output_path = path_processor.join(job.output_directory, random_name())
         # Serialize namespaces to remote resource
-        user_ns_path = await self._serialize_namespace(
-            job=job,
-            namespace={k: v for k, v in {**self.user_ns, **updated_names}.items() if k in self.input_names})
-        if self.user_global_ns != self.user_ns:
-            user_global_ns_path = await self._serialize_namespace(
-                job=job,
-                namespace={k: v for k, v in {**self.user_global_ns, **updated_names}.items() if k in self.input_names})
-        else:
-            user_global_ns_path = None
+        user_ns_path = await self._serialize_namespace(job=job, namespace=input_names)
         # Create dictionaries of postload input serializers and predump output serializers
         postload_input_serializers = {k: {'postload': v['postload']}
                                       for k, v in self.input_serializers.items() if 'postload' in v}
@@ -170,15 +157,13 @@ class JupyterCommand(Command):
         if self.autoawait:
             cmd.append("--autoawait")
         cmd.extend(["--local-ns-file", user_ns_path])
-        if user_global_ns_path is not None:
-            cmd.extend(["--global-ns-file", user_global_ns_path])
         if postload_input_serializers:
             postload_serializers_path = await self._serialize_to_remote_file(job, postload_input_serializers)
             cmd.extend(["--postload-input-serializers", postload_serializers_path])
         if predump_output_serializers:
             predump_serializers_path = await self._serialize_to_remote_file(job, predump_output_serializers)
             cmd.extend(["--predump-output-serializers", predump_serializers_path])
-        for name in self.output_names:
+        for name in output_names:
             cmd.extend(["--output-name", name])
         cmd.extend([code_path, output_path])
         # Execute command
@@ -191,11 +176,10 @@ class JupyterCommand(Command):
                 command=' \\\n\t'.join(cmd),
             ))
             # If step is assigned to multiple resources, add the STREAMFLOW_HOSTS environment variable
-            parsed_env = self.environment
             if len(resources) > 1:
                 available_resources = await connector.get_available_resources(self.step.target.service)
                 hosts = {k: v.hostname for k, v in available_resources.items() if k in resources}
-                parsed_env['STREAMFLOW_HOSTS'] = ','.join(hosts.values())
+                environment['STREAMFLOW_HOSTS'] = ','.join(hosts.values())
             # Configure standard streams
             stdin = self.stdin
             stdout = self.stdout if self.stdout is not None else STDOUT
@@ -204,7 +188,7 @@ class JupyterCommand(Command):
             result, exit_code = await connector.run(
                 resources[0] if resources else None,
                 cmd,
-                environment=parsed_env,
+                environment=environment,
                 workdir=job.output_directory,
                 stdin=stdin,
                 stdout=stdout,
@@ -225,7 +209,7 @@ class JupyterCommand(Command):
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=job.output_directory,
-                env=self.environment,
+                env=environment,
                 stdin=stdin,
                 stdout=stdout,
                 stderr=stderr
@@ -253,20 +237,12 @@ class JupyterCommand(Command):
                 json_output = json.load(f)
         if status == Status.COMPLETED:
             command_stdout = json_output[executor.CELL_OUTPUT]
-            if self.user_global_ns != self.user_ns:
-                self.user_ns = {
-                    **self.user_ns,
-                    **await self._deserialize_namespace(job, json_output[executor.CELL_LOCAL_NS])}
-                self.user_global_ns = {
-                    **self.user_global_ns,
-                    **(await self._deserialize_namespace(job, json_output[executor.CELL_GLOBAL_NS])
-                       if executor.CELL_GLOBAL_NS in json_output else {})}
-            else:
-                self.user_global_ns = self.user_ns = {
-                    **self.user_ns,
-                    **await self._deserialize_namespace(job, json_output[executor.CELL_LOCAL_NS])}
+            if isinstance(command_stdout, MutableSequence):  # TODO: understand why we obtain a list here
+                command_stdout = command_stdout[0]
+            user_ns = await self._deserialize_namespace(job, json_output[executor.CELL_LOCAL_NS])
         else:
             command_stdout = json_output[executor.CELL_OUTPUT]
+            user_ns = {}
         # Print the command stdout
         if command_stdout:
             print(command_stdout)
@@ -274,5 +250,4 @@ class JupyterCommand(Command):
         return JupyterCommandOutput(
             value=command_stdout,
             status=status,
-            user_ns=self.user_ns,
-            user_global_ns=self.user_global_ns)
+            user_ns=user_ns)
