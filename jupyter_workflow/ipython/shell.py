@@ -1,12 +1,10 @@
 import ast
 import asyncio
-import hashlib
-import json
 import os
 import sys
 import tempfile
 from contextvars import ContextVar
-from typing import MutableMapping, Any, Optional, MutableSequence, List, Tuple
+from typing import MutableMapping, Any, Optional, List, Tuple
 
 import IPython
 import dill
@@ -14,38 +12,18 @@ from IPython.core.interactiveshell import softspace
 from ipykernel.zmqshell import ZMQInteractiveShell
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.deployment import ModelConfig
-from streamflow.core.utils import random_name
-from streamflow.core.workflow import Step, TerminationToken, Job
-from streamflow.core.workflow import Target, Status
+from streamflow.core.workflow import Step
 from streamflow.data.data_manager import DefaultDataManager
 from streamflow.deployment.deployment_manager import DefaultDeploymentManager
 from streamflow.recovery.checkpoint_manager import DummyCheckpointManager
 from streamflow.recovery.failure_manager import DummyFailureManager
 from streamflow.scheduling.policy import DataLocalityPolicy
 from streamflow.scheduling.scheduler import DefaultScheduler
-from streamflow.workflow.combinator import DotProductInputCombinator
-from streamflow.workflow.port import DefaultInputPort, DefaultOutputPort
-from streamflow.workflow.step import BaseStep, BaseJob
+from streamflow.workflow.step import BaseStep
 from traitlets import observe
 from typing_extensions import Text
 
-from jupyter_workflow.streamflow.command import JupyterCommand, JupyterCommandOutput
-from jupyter_workflow.streamflow.token_processor import FileTokenProcessor
-
-
-def _build_target(model_name: Text, step_target: MutableMapping[Text, Any]) -> Target:
-    target_model = step_target['model']
-    return Target(
-        model=ModelConfig(
-            name=model_name,
-            connector_type=target_model['type'],
-            config=target_model['config'],
-            external=target_model.get('external', False)
-        ),
-        resources=step_target.get('resources', 1),
-        service=step_target.get('service')
-    )
+from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebook, JupyterNotebookTranslator
 
 
 async def _collect_namespace(step: Step,
@@ -62,30 +40,6 @@ async def _collect_namespace(step: Step,
         return None
 
 
-class DependenciesRetriever(ast.NodeVisitor):
-
-    def __init__(self,
-                 cell_name: Text,
-                 compiler,
-                 user_ns: MutableMapping[Text, Any],
-                 user_global_ns: MutableMapping[Text, Any]):
-        super().__init__()
-        self.cell_name: Text = cell_name
-        self.compiler = compiler
-        self.deps: MutableSequence[Text] = []
-        self.names: MutableSequence[Text] = []
-        self.user_ns: MutableMapping[Text, Any] = user_ns
-        self.user_global_ns: MutableMapping[Text, Any] = user_global_ns
-
-    def visit_Name(self, node):
-        if isinstance(node.ctx, ast.Load) and node.id not in self.names:
-            # Skip the 'get_ipython' dependency as it is not serialisable
-            if node.id != 'get_ipython' and (node.id in self.user_ns or node.id in self.user_global_ns):
-                self.deps.append(node.id)
-        self.names.append(node.id)
-        self.generic_visit(node)
-
-
 class StreamFlowInteractiveShell(ZMQInteractiveShell):
 
     def __init__(self, **kwargs):
@@ -99,171 +53,25 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         self.wf_cell_config: ContextVar[MutableMapping[Text, Any]] = ContextVar('wf_cell_config', default={})
         self.sys_excepthook = None
 
-    async def _build_file_port(self,
-                               job: Job,
-                               name: Text,
-                               step: Step,
-                               element: MutableMapping[Text, Text]):
-        port_name = name or utils.random_name()
-        output_port = DefaultOutputPort(name=port_name)
-        output_port.step = job.step
-        output_port.token_processor = FileTokenProcessor(
-            port=output_port,
-            name=name,
-            value=element.get('value'),
-            valueFrom=element.get('valueFrom'))
-        command_output = JupyterCommandOutput(
-            value=None,
-            status=Status.COMPLETED,
-            user_ns=self.user_ns,
-            user_global_ns=self.user_global_ns)
-        output_port.put(await output_port.token_processor.compute_token(job, command_output))
-        output_port.put(TerminationToken(port_name))
-        port = DefaultInputPort(name=port_name)
-        port.step = step
-        port.token_processor = FileTokenProcessor(
-            port=port,
-            name=name,
-            value=element.get('value'),
-            valueFrom=element.get('valueFrom'))
-        port.dependee = output_port
-        return port
-
-    def _extract_dependencies(self,
-                              cell_name: Text,
-                              compiler,
-                              ast_nodes: List[Tuple[ast.AST, Text]]) -> MutableSequence[Text]:
-        visitor = DependenciesRetriever(cell_name, compiler, self.user_ns, self.user_global_ns)
-        for node, _ in ast_nodes:
-            visitor.visit(node)
-        return visitor.deps
-
     async def _run_with_streamflow(self,
                                    cell_name: Text,
                                    compiler,
                                    ast_nodes: List[Tuple[ast.AST, Text]],
                                    cell_config: MutableMapping[Text, Any]):
         # Build the step target from metadata
-        target = cell_config['target']
-        if isinstance(target['model'], Text):
-            target = {**target, **{'model': cell_config['models'][target['model']]}}
-        model_name = hashlib.md5(json.dumps(
-            obj=target['model'],
-            sort_keys=True,
-            ensure_ascii=True,
-            default=str).encode('ascii')).hexdigest()
-        target = _build_target(model_name, target)
-        # Extract Python interpreter from metadata
-        interpreter = cell_config.get('interpreter', 'ipython')
-        # Create a step structure
-        step = BaseStep(
-            name=cell_config['step_id'],
-            context=self.context,
-            target=target)
-        # Create dummy job for input tokens
-        input_injector = BaseJob(
-            name=utils.random_name(),
-            step=BaseStep(utils.random_name(), self.context),
-            inputs=[])
-        # Process cell inputs
-        cell_inputs = cell_config['step'].get('in', [])
-        autoin = cell_config['step'].get('autoin', True)
-        environment = {}
-        input_names = self._extract_dependencies(cell_name, compiler, ast_nodes) if autoin else []
-        input_serializers = {}
-        for element in cell_inputs:
-            # If is a string, it refers to the name of a variable
-            if isinstance(element, Text):
-                element = {
-                    'type': 'name',
-                    'name': element
-                }
-            # Otherwise it must be a dictionary
-            if isinstance(element, MutableMapping):
-                element_type = element['type']
-                # If type is equal to `file`, it refers to a file path in the local resource
-                if element_type == 'file':
-                    name = element.get('name') or element.get('valueFrom')
-                    port = await self._build_file_port(
-                        job=input_injector,
-                        name=name,
-                        step=step,
-                        element=element)
-                    step.input_ports[port.name] = port
-                    if name is not None:
-                        input_names.append(name)
-                # If type is equal to `name`, it refers to a variable
-                elif element_type == 'name':
-                    input_names.append(element['name'])
-                # Put each additional dependency not related to variables as env variables
-                elif element_type == 'env':
-                    if 'value' in element:
-                        environment[element['name']] = element['value']
-                    else:
-                        name = element['valueFrom']
-                        environment[element['name']] = (self.user_ns[name] if name in self.user_ns else
-                                                        self.user_global_ns[name])
-                # Add serializer if present
-                if 'serializer' in element:
-                    name = element.get('name') or element.get('valueFrom')
-                    input_serializers[name] = (cell_config['serializers'][element['serializer']]
-                                               if isinstance(element['serializer'], Text)
-                                               else element['serializer'])
-        # If outputs are defined for the current cell
-        output_names = []
-        output_serializers = {}
-        if 'out' in cell_config['step']:
-            for element in cell_config['step']['out']:
-                # If is a string, it refers to the name of a variable
-                if isinstance(element, Text):
-                    element = {
-                        'type': 'name',
-                        'name': element
-                    }
-                # Otherwise it must be a dictionary
-                if isinstance(element, MutableMapping):
-                    element_type = element['type']
-                    # If type is equal to `file`, it refers to a file path in the remote resource
-                    if element_type == 'file':
-                        name = element.get('name') or element.get('valueFrom')
-                        port_name = name or random_name()
-                        output_port = DefaultOutputPort(name=port_name)
-                        output_port.step = step
-                        output_port.token_processor = FileTokenProcessor(
-                            port=output_port,
-                            name=name,
-                            value=element.get('value'),
-                            valueFrom=element.get('valueFrom'))
-                        step.output_ports[port_name] = output_port
-                        output_names.append(port_name)
-                    # If type is equal to `name`, it refers to a variable
-                    elif element_type == 'name':
-                        output_names.append(element['name'])
-                # Add serializer if present
-                if 'serializer' in element:
-                    name = element.get('name') or element.get('valueFrom')
-                    output_serializers[name] = (cell_config['serializers'][element['serializer']]
-                                                if isinstance(element['serializer'], Text)
-                                                else element['serializer'])
-        # Set input combinator for the step
-        input_combinator = DotProductInputCombinator(utils.random_name())
-        for port in step.input_ports.values():
-            input_combinator.ports[port.name] = port
-        step.input_combinator = input_combinator
-        # Create the command to be executed remotely
-        step.command = JupyterCommand(
-            step=step,
-            ast_nodes=ast_nodes,
+        cell = JupyterCell(
+            name=cell_name,
+            code=ast_nodes,
             compiler=compiler,
-            environment=environment,
-            interpreter=interpreter,
-            input_names=input_names,
-            input_serializers=input_serializers,
-            output_names=output_names,
-            output_serializers=output_serializers,
+            metadata=cell_config)
+        translator = JupyterNotebookTranslator(
+            context=self.context,
             user_ns=self.user_ns,
-            user_global_ns=self.user_global_ns,
-            autoawait=self.autoawait)
+            user_global_ns=self.user_global_ns)
+        step = await translator.translate_cell(
+            cell=cell,
+            autoawait=self.autoawait,
+            metadata=cell_config)
         # Execute the step
         await step.run()
         # Update namespaces
