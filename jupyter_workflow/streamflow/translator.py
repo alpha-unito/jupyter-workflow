@@ -14,7 +14,7 @@ from streamflow.workflow.port import DefaultOutputPort, DefaultInputPort, Scatte
 from streamflow.workflow.step import BaseStep
 
 from jupyter_workflow.streamflow.command import JupyterCommand
-from jupyter_workflow.streamflow.token_processor import FileTokenProcessor, NameTokenProcessor
+from jupyter_workflow.streamflow.token_processor import FileTokenProcessor, NameTokenProcessor, ControlTokenProcessor
 
 
 def _build_target(model_name: Text, step_target: MutableMapping[Text, Any]) -> Target:
@@ -126,7 +126,7 @@ class JupyterNotebookTranslator(object):
             if isinstance(element, MutableMapping):
                 # Create input port
                 name = element.get('name') or element.get('valueFrom')
-                if element.get('scatter', False):
+                if 'scatter' in element:
                     port = ScatterInputPort(name=name, step=step)
                     gather = True
                 else:
@@ -156,7 +156,7 @@ class JupyterNotebookTranslator(object):
                         compiler=cell.compiler,
                         value=element.get('value'),
                         value_from=element.get('valueFrom', name))
-                # Put each additional dependency not related to variables as env variables
+                # If type is equal to `env`, add the value to shell env variables
                 elif element_type == 'env':
                     port.token_processor = NameTokenProcessor(
                         port=port,
@@ -166,6 +166,11 @@ class JupyterNotebookTranslator(object):
                         serializer=serializer,
                         value=element.get('value'),
                         value_from=element.get('valueFrom'))
+                # If type is equal to `control`, simply add an empty dependency
+                elif element_type == 'control':
+                    port.token_processor = ControlTokenProcessor(
+                        port=port,
+                        name=name)
                 # Register step port
                 step.input_ports[port.name] = port
         # Retrieve inputs automatically if necessary
@@ -223,6 +228,11 @@ class JupyterNotebookTranslator(object):
                             compiler=cell.compiler,
                             serializer=serializer,
                             value_from=element.get('valueFrom', name))
+                    # If type is equal to `control`, simply add an empty dependency
+                    elif element_type == 'control':
+                        output_port.token_processor = ControlTokenProcessor(
+                            port=output_port,
+                            name=name)
                     # Register step port
                     step.output_ports[port_name] = output_port
         # Set input combinator for the step

@@ -14,6 +14,18 @@ from jupyter_workflow.ipython import executor
 from jupyter_workflow.streamflow.command import JupyterCommandOutput
 
 
+class ControlTokenProcessor(DefaultTokenProcessor):
+
+    def __init__(self,
+                 port: Port,
+                 name: Text):
+        super().__init__(port)
+        self.name: Text = name
+
+    async def compute_token(self, job: Job, command_output: JupyterCommandOutput) -> Token:
+        return Token(name=self.port.name, value=None, job=job.name)
+
+
 class FileTokenProcessor(DefaultTokenProcessor):
 
     def __init__(self,
