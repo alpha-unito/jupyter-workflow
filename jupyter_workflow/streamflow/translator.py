@@ -2,7 +2,7 @@ import ast
 import asyncio
 import hashlib
 import json
-from typing import MutableSequence, Text, Any, MutableMapping, Optional, Tuple, List
+from typing import MutableSequence, Text, Any, MutableMapping, Optional, Tuple, List, Set
 
 from IPython.core.compilerop import CachingCompiler
 from streamflow.core import utils
@@ -37,7 +37,31 @@ def _extract_dependencies(cell_name: Text,
     visitor = DependenciesRetriever(cell_name, compiler)
     for node, _ in ast_nodes:
         visitor.visit(node)
-    return visitor.deps
+    return list(visitor.deps)
+
+
+class NamesStack(object):
+
+    def __init__(self):
+        self.stack: List[Set] = [set()]
+
+    def add_scope(self):
+        self.stack.append(set())
+
+    def add_name(self, name: Text):
+        self.stack[-1].add(name)
+
+    def delete_scope(self):
+        self.stack.pop()
+
+    def delete_name(self, name: Text):
+        self.stack[-1].remove(name)
+
+    def __contains__(self, name: Text) -> bool:
+        for scope in self.stack:
+            if name in scope:
+                return True
+        return False
 
 
 class DependenciesRetriever(ast.NodeVisitor):
@@ -48,16 +72,117 @@ class DependenciesRetriever(ast.NodeVisitor):
         super().__init__()
         self.cell_name: Text = cell_name
         self.compiler: CachingCompiler = compiler
-        self.deps: MutableSequence[Text] = []
-        self.names: MutableSequence[Text] = []
+        self.deps: Set[Text] = set()
+        self.names: NamesStack = NamesStack()
+
+    def _visit_fields(self, fields):
+        for value in fields.values():
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, ast.AST):
+                        self.visit(item)
+            elif isinstance(value, ast.AST):
+                self.visit(value)
+
+    def _visit_Comp(self, node):
+        # Add local context
+        self.names.add_scope()
+        # Extract fields
+        fields = {f: v for f, v in ast.iter_fields(node)}
+        # Visit the generators field
+        for item in fields['generators']:
+            if isinstance(item, ast.AST):
+                self.visit(item)
+        del fields['generators']
+        # Visit the other fields
+        self._visit_fields(fields)
+        # Remove local context
+        self.names.delete_scope()
+
+    def _visit_FunctionDef(self, node):
+        # Extract fields
+        fields = {f: v for f, v in ast.iter_fields(node)}
+        # Add name to the context
+        self.names.add_name(fields['name'])
+        del fields['name']
+        # Add local context
+        self.names.add_scope()
+        # Visit arguments
+        self.visit(fields['args'])
+        del fields['args']
+        # Visit other fields
+        self._visit_fields(fields)
+        # Remove local context
+        self.names.delete_scope()
+
+    def visit_alias(self, node):
+        # Extract fields
+        fields = {f: v for f, v in ast.iter_fields(node)}
+        # If alias is defined add alias, otherwise, add name
+        self.names.add_name(fields['asname'] or fields['name'])
+
+    def visit_arg(self, node: ast.arg):
+        # Extract fields
+        fields = {f: v for f, v in ast.iter_fields(node)}
+        # Add arg to context
+        self.names.add_name(fields['arg'])
+        del fields['arg']
+        # Fisit other fields
+        self._visit_fields(fields)
+
+    def visit_AsyncFunctionDef(self, node):
+        self._visit_FunctionDef(node)
+
+    def visit_ClassDef(self, node):
+        # Extract fields
+        fields = {f: v for f, v in ast.iter_fields(node)}
+        # Add name to the context
+        self.names.add_name(fields['name'])
+        del fields['name']
+        # Add local context
+        self.names.add_scope()
+        # Visit other fields
+        self._visit_fields(fields)
+        # Remove local context
+        self.names.delete_scope()
+
+    def visit_DictComp(self, node):
+        self._visit_Comp(node)
+
+    def visit_ExceptHandler(self, node):
+        # Extract fields
+        fields = {f: v for f, v in ast.iter_fields(node)}
+        # Add name to the context
+        if fields['name'] is not None:
+            self.names.add_name(fields['name'])
+        del fields['name']
+        # Add local context
+        self.names.add_scope()
+        # Visit other fields
+        self._visit_fields(fields)
+        # Remove local context
+        self.names.delete_scope()
+
+    def visit_FunctionDef(self, node):
+        self._visit_FunctionDef(node)
+
+    def visit_GeneratorExp(self, node):
+        self._visit_Comp(node)
+
+    def visit_ListComp(self, node):
+        self._visit_Comp(node)
 
     def visit_Name(self, node):
         if isinstance(node.ctx, ast.Load) and node.id not in self.names:
             # Skip the 'get_ipython' dependency as it is not serialisable
             if node.id != 'get_ipython':
-                self.deps.append(node.id)
-        self.names.append(node.id)
+                self.deps.add(node.id)
+        elif isinstance(node.ctx, ast.Store):
+            self.names.add_name(node.id)
         self.generic_visit(node)
+
+    def visit_SetComp(self, node):
+        self._visit_Comp(node)
 
 
 class JupyterCell(object):
