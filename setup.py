@@ -18,16 +18,15 @@ setup(
         "jupyter_workflow.ipython",
         "jupyter_workflow.streamflow"
     ],
+    package_data={
+        "jupyter_workflow.config": ["schemas/v1.0/*.json"],
+        "jupyter_workflow.ipython": ["kernelspec/kernel.js"]
+    },
     description="Jupyter Workflow Kernel",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Iacopo Colonnelli",
     author_email="iacopo.colonnelli@unito.it",
-    package_data={
-        "jupyter_workflow.config": ["schemas/v1.0/*.json"],
-        "jupyter_workflow.ipython": ["kernelspec/kernel.js"]
-    },
-    include_package_data=True,
     url='https://github.com/alpha-unito/jupyter-workflow',
     install_requires=[
         "dill",
