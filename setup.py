@@ -1,5 +1,6 @@
-from distutils.core import setup
 from os import path
+
+from setuptools import setup
 
 from jupyter_workflow.version import VERSION
 
@@ -17,10 +18,12 @@ setup(
         "jupyter_workflow.ipython",
         "jupyter_workflow.streamflow"
     ],
-    description="Workflow Jupyter Kernel",
+    description="Jupyter Workflow Kernel",
     long_description=long_description,
     author="Iacopo Colonnelli",
     author_email="iacopo.colonnelli@unito.it",
+    package_data={"jupyter_workflow.config": ["schemas/v1.0/*.json"]},
+    include_package_data=True,
     url='https://github.com/alpha-unito/jupyter-workflow',
     install_requires=[
         "dill",
@@ -33,6 +36,8 @@ setup(
         "streamflow",
         "traitlets"
     ],
+    python_requires=">=3.8, <4",
+    zip_safe=True,
     classifiers=[
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
