@@ -23,7 +23,10 @@ setup(
     long_description_content_type="text/markdown",
     author="Iacopo Colonnelli",
     author_email="iacopo.colonnelli@unito.it",
-    package_data={"jupyter_workflow.config": ["schemas/v1.0/*.json"]},
+    package_data={
+        "jupyter_workflow.config": ["schemas/v1.0/*.json"],
+        "jupyter_workflow.ipython": ["kernelspec/kernel.js"]
+    },
     include_package_data=True,
     url='https://github.com/alpha-unito/jupyter-workflow',
     install_requires=[
