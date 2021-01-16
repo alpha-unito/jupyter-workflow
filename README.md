@@ -10,10 +10,10 @@ The Jupyter Workflow IPython kernel is available on [PyPI](https://pypi.org/proj
 pip install jupyter-workflow
 ```
 
-Then, you can execute the `setup.py` script to install it on a Jupyter Notebook server
+Then, you can install it on a Jupyter Notebook server by running the following command.
 
 ```bash
-python -m jupyter_workflow install --user
+python -m jupyter_workflow.ipython install --user
 ```
 
 Please note that Jupyter Workflow requires `python >= 3.8`. Then you can associate your Jupyter Notebooks with the newly installed kernel. Some examples can be found under the `examples` folder in the [GitHub repository](https://github.com/alpha-unito/jupyter-workflow).
