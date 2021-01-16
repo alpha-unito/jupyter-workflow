@@ -20,6 +20,7 @@ setup(
     ],
     description="Jupyter Workflow Kernel",
     long_description=long_description,
+    long_description_content_type="text/markdown",
     author="Iacopo Colonnelli",
     author_email="iacopo.colonnelli@unito.it",
     package_data={"jupyter_workflow.config": ["schemas/v1.0/*.json"]},
