@@ -2,6 +2,8 @@ import ast
 import asyncio
 import hashlib
 import json
+from collections import OrderedDict
+from itertools import islice
 from typing import MutableSequence, Text, Any, MutableMapping, Optional, Tuple, List, Set
 
 from IPython.core.compilerop import CachingCompiler
@@ -15,6 +17,21 @@ from streamflow.workflow.step import BaseStep
 
 from jupyter_workflow.streamflow.command import JupyterCommand
 from jupyter_workflow.streamflow.token_processor import FileTokenProcessor, NameTokenProcessor, ControlTokenProcessor
+
+
+def _build_dependencies(workflow: Workflow) -> None:
+    input_deps = {step_name: list(step.input_ports.keys()) for step_name, step in workflow.steps.items()}
+    return_values = {step_name: list(step.output_ports.keys()) for step_name, step in workflow.steps.items()}
+
+    for i, (in_step, in_names) in enumerate(input_deps.values()):
+        available_names = {k: return_values[k] for k in reversed(list(islice(return_values, i)))}
+        for in_name in in_names:
+            for out_step, out_names in available_names.items():
+                if in_name in out_names:
+                    input_port = workflow.steps[in_step].input_ports[in_name]
+                    output_port = workflow.steps[out_step].output_ports[in_name]
+                    input_port.dependee = output_port
+                    break
 
 
 def _build_target(model_name: Text, step_target: MutableMapping[Text, Any]) -> Target:
@@ -325,11 +342,10 @@ class JupyterNotebookTranslator(object):
                 if isinstance(element, MutableMapping):
                     # Create port
                     name = element.get('name') or element.get('valueFrom')
-                    port_name = name or utils.random_name()
                     if gather:
-                        output_port = GatherOutputPort(name=port_name, step=step)
+                        output_port = GatherOutputPort(name=name, step=step)
                     else:
-                        output_port = DefaultOutputPort(name=port_name, step=step)
+                        output_port = DefaultOutputPort(name=name, step=step)
                     # Get serializer if present
                     serializer = (metadata['serializers'][element['serializer']]
                                   if isinstance(element['serializer'], Text)
@@ -359,7 +375,7 @@ class JupyterNotebookTranslator(object):
                             port=output_port,
                             name=name)
                     # Register step port
-                    step.output_ports[port_name] = output_port
+                    step.output_ports[name] = output_port
         # Set input combinator for the step
         input_combinator = DotProductInputCombinator(utils.random_name())
         for port in step.input_ports.values():
@@ -386,7 +402,9 @@ class JupyterNotebookTranslator(object):
                 metadata={**cell.metadata, **notebook.metadata},
                 autoawait=notebook.autoawait)
         ) for cell in notebook.cells}
-        workflow.steps = dict(zip(cell_tasks.keys(), await asyncio.gather(*cell_tasks.values())))
+        workflow.steps = OrderedDict(zip(cell_tasks.keys(), await asyncio.gather(*cell_tasks.values())))
+        # Build dependency graph
+        _build_dependencies(workflow)
         # Extract workflow outputs
         last_step = workflow.steps[notebook.cells[-1].name]
         for port_name, port in last_step.output_ports.items():

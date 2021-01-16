@@ -23,7 +23,6 @@ from streamflow.workflow.step import BaseStep, BaseJob
 from traitlets import observe
 from typing_extensions import Text
 
-from jupyter_workflow.ipython import executor
 from jupyter_workflow.streamflow.command import JupyterCommandOutput
 from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator
 

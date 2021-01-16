@@ -10,7 +10,7 @@ import sys
 import traceback
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
 from tempfile import NamedTemporaryFile
-from typing import Dict, MutableSequence
+from typing import Dict
 
 if sys.version_info > (3, 8):
     from ast import Module

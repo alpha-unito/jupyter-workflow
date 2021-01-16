@@ -10,7 +10,7 @@ from streamflow.core.workflow import Job, Token, Port
 from streamflow.data import remotepath
 from streamflow.workflow.port import DefaultTokenProcessor
 
-from jupyter_workflow.ipython import executor
+from jupyter_workflow.streamflow import executor
 from jupyter_workflow.streamflow.command import JupyterCommandOutput
 
 

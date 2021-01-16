@@ -17,7 +17,7 @@ from streamflow.core.workflow import Job, CommandOutput, Step
 from streamflow.log_handler import logger
 from typing_extensions import Text
 
-from jupyter_workflow.ipython import executor
+from jupyter_workflow.streamflow import executor
 
 
 class JupyterCommandOutput(CommandOutput):
