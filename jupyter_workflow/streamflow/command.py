@@ -15,6 +15,7 @@ from streamflow.core.utils import get_path_processor, random_name
 from streamflow.core.workflow import Command, Status
 from streamflow.core.workflow import Job, CommandOutput, Step
 from streamflow.log_handler import logger
+from streamflow.workflow.port import ScatterInputPort
 from typing_extensions import Text
 
 from jupyter_workflow.streamflow import executor
@@ -30,6 +31,17 @@ class JupyterCommandOutput(CommandOutput):
         self.user_ns: MutableMapping[Text, Any] = user_ns
 
 
+class JupyterCommandToken(object):
+
+    def __init__(self,
+                 name: Text,
+                 token_type: Text,
+                 serializer: Optional[MutableMapping[Text, Any]] = None):
+        self.name: Text = name
+        self.token_type: Text = token_type
+        self.serializer: Optional[MutableMapping[Text, Any]] = serializer
+
+
 class JupyterCommand(Command):
 
     def __init__(self,
@@ -37,8 +49,8 @@ class JupyterCommand(Command):
                  ast_nodes: List[Tuple[ast.AST, Text]],
                  compiler: CachingCompiler,
                  interpreter: Text,
-                 input_serializers: MutableMapping[Text, Any],
-                 output_serializers: MutableMapping[Text, Any],
+                 input_tokens: MutableMapping[Text, JupyterCommandToken],
+                 output_tokens: MutableMapping[Text, JupyterCommandToken],
                  autoawait: bool,
                  stderr: Optional[Text] = None,
                  stdin: Optional[Text] = None,
@@ -47,14 +59,17 @@ class JupyterCommand(Command):
         self.ast_nodes: List[Tuple[ast.AST, Text]] = ast_nodes
         self.compiler: CachingCompiler = compiler
         self.interpreter: Text = interpreter
-        self.input_serializers: MutableMapping[Text, Any] = input_serializers
-        self.output_serializers: MutableMapping[Text, Any] = output_serializers
+        self.input_tokens: MutableMapping[Text, JupyterCommandToken] = input_tokens
+        self.output_tokens: MutableMapping[Text, JupyterCommandToken] = output_tokens
         self.autoawait: bool = autoawait
         self.stderr: Optional[Text] = stderr
         self.stdin: Optional[Text] = stdin
         self.stdout: Optional[Text] = stdout
 
-    async def _deserialize_namespace(self, job: Job, remote_path: Text) -> MutableMapping[Text, Any]:
+    async def _deserialize_namespace(self,
+                                     job: Job,
+                                     output_serializers: MutableMapping[Text, Any],
+                                     remote_path: Text) -> MutableMapping[Text, Any]:
         if remote_path:
             with TemporaryDirectory() as d:
                 path_processor = get_path_processor(self.step)
@@ -67,8 +82,8 @@ class JupyterCommand(Command):
                 with open(dest_path, 'rb') as f:
                     namespace = dill.load(f)
                 for name, value in namespace.items():
-                    if name in self.output_serializers:
-                        intermediate_type = self.output_serializers[name].get('type', 'name')
+                    if name in output_serializers:
+                        intermediate_type = output_serializers[name].get('type', 'name')
                         if intermediate_type == 'file':
                             dest_path = os.path.join(mkdtemp(), path_processor.basename(namespace[name]))
                             await self.step.context.data_manager.transfer_data(
@@ -81,15 +96,18 @@ class JupyterCommand(Command):
                     compiler=self.compiler,
                     name=k,
                     value=v,
-                    serializer=self.output_serializers.get(k)
+                    serializer=output_serializers.get(k)
                 ) for k, v in namespace.items()}
         else:
             return {}
 
-    async def _serialize_namespace(self, job: Job, namespace: MutableMapping[Text, Any]) -> Text:
+    async def _serialize_namespace(self,
+                                   input_serializers: MutableMapping[Text, Any],
+                                   job: Job,
+                                   namespace: MutableMapping[Text, Any]) -> Text:
         for name, value in namespace.items():
-            if name in self.input_serializers:
-                intermediate_type = self.input_serializers[name].get('type', 'name')
+            if name in input_serializers:
+                intermediate_type = input_serializers[name].get('type', 'name')
                 if intermediate_type == 'file':
                     namespace[name] = dill.dumps(await self._transfer_file(job, dill.loads(value)))
         try:
@@ -125,17 +143,17 @@ class JupyterCommand(Command):
         # Modify code, environment and namespaces according to inputs
         input_names = {}
         environment = {}
-        for element in [t.value for t in job.inputs if t.value is not None]:
-            element_type = element['type']
-            if element_type == 'file':
-                if 'name' in element:
-                    input_names[element['name']] = element['dst']
-                else:
-                    pass  # TODO: manipulate AST
-            elif element_type == 'name':
-                input_names[element['name']] = element['value']
-            elif element_type == 'env':
-                environment[element['name']] = element['value']
+        for token in job.inputs:
+            if token.value is not None:
+                command_token = self.input_tokens[token.name]
+                token_value = ([token.value] if isinstance(self.step.input_ports[token.name], ScatterInputPort) else
+                               token.value)
+                if command_token.token_type == 'file':
+                    input_names[token.name] = token_value
+                elif command_token.token_type == 'name':
+                    input_names[token.name] = token_value
+                elif command_token.token_type == 'env':
+                    environment[token.name] = token_value
         # List output names to be retrieved from remote context
         output_names = self.step.output_ports.keys()
         # Serialize AST nodes to remote resource
@@ -143,13 +161,19 @@ class JupyterCommand(Command):
         # Configure output fiel path
         path_processor = get_path_processor(self.step)
         output_path = path_processor.join(job.output_directory, random_name())
+        # Extract serializers from command tokens
+        input_serializers = {k: v.serializer for k, v in self.input_tokens.items() if v.serializer is not None}
+        output_serializers = {k: v.serializer for k, v in self.output_tokens.items() if v.serializer is not None}
         # Serialize namespaces to remote resource
-        user_ns_path = await self._serialize_namespace(job=job, namespace=input_names)
+        user_ns_path = await self._serialize_namespace(
+            input_serializers=input_serializers,
+            job=job,
+            namespace=input_names)
         # Create dictionaries of postload input serializers and predump output serializers
         postload_input_serializers = {k: {'postload': v['postload']}
-                                      for k, v in self.input_serializers.items() if 'postload' in v}
+                                      for k, v in input_serializers.items() if 'postload' in v}
         predump_output_serializers = {k: {'predump': v['predump']}
-                                      for k, v in self.output_serializers.items() if 'predump' in v}
+                                      for k, v in output_serializers.items() if 'predump' in v}
         # Parse command
         cmd = [self.interpreter, executor_path]
         if self.interpreter == 'ipython':
@@ -239,7 +263,10 @@ class JupyterCommand(Command):
             command_stdout = json_output[executor.CELL_OUTPUT]
             if isinstance(command_stdout, MutableSequence):  # TODO: understand why we obtain a list here
                 command_stdout = command_stdout[0]
-            user_ns = await self._deserialize_namespace(job, json_output[executor.CELL_LOCAL_NS])
+            user_ns = await self._deserialize_namespace(
+                job=job,
+                output_serializers=output_serializers,
+                remote_path=json_output[executor.CELL_LOCAL_NS])
         else:
             command_stdout = json_output[executor.CELL_OUTPUT]
             user_ns = {}

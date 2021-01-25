@@ -10,7 +10,7 @@ import sys
 import traceback
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
 from tempfile import NamedTemporaryFile
-from typing import Dict
+from typing import Dict, MutableSequence
 
 if sys.version_info > (3, 8):
     from ast import Module
@@ -137,7 +137,8 @@ async def run_code(args):
             compiler = RemoteCompiler()
             # Deserialize elements
             ast_nodes = _deserialize(args.code_file)
-            user_ns = prepare_ns({k: dill.loads(v) for k, v in _deserialize(args.local_ns_file, {}).items()})
+            user_ns = prepare_ns({k: [dill.loads(el) for el in v] if isinstance(v, MutableSequence) else dill.loads(v)
+                                  for k, v in _deserialize(args.local_ns_file, {}).items()})
             # Apply postload serialization hooks if present
             if args.postload_input_serializers:
                 postload_input_serializers = _deserialize(args.postload_input_serializers)

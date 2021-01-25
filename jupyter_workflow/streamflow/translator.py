@@ -2,6 +2,7 @@ import ast
 import asyncio
 import hashlib
 import json
+import posixpath
 from collections import OrderedDict
 from itertools import islice
 from typing import MutableSequence, Text, Any, MutableMapping, Optional, Tuple, List, Set
@@ -10,12 +11,12 @@ from IPython.core.compilerop import CachingCompiler
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import ModelConfig
-from streamflow.core.workflow import Workflow, Target, Step
-from streamflow.workflow.combinator import DotProductInputCombinator
+from streamflow.core.workflow import Workflow, Target, Step, InputCombinator
+from streamflow.workflow.combinator import DotProductInputCombinator, CartesianProductInputCombinator
 from streamflow.workflow.port import DefaultOutputPort, DefaultInputPort, ScatterInputPort, GatherOutputPort
 from streamflow.workflow.step import BaseStep
 
-from jupyter_workflow.streamflow.command import JupyterCommand
+from jupyter_workflow.streamflow.command import JupyterCommand, JupyterCommandToken
 from jupyter_workflow.streamflow.token_processor import FileTokenProcessor, NameTokenProcessor, ControlTokenProcessor
 
 
@@ -55,6 +56,37 @@ def _extract_dependencies(cell_name: Text,
     for node, _ in ast_nodes:
         visitor.visit(node)
     return list(visitor.deps)
+
+
+def _get_input_combinator(step: Step, scatter_inputs: Optional[Set[Text]] = None) -> InputCombinator:
+    scatter_inputs = scatter_inputs or set()
+    # If there are no scatter ports in this step, create a single DotProduct combinator
+    if not [n for n in scatter_inputs]:
+        input_combinator = DotProductInputCombinator(utils.random_name())
+        for port in step.input_ports.values():
+            input_combinator.ports[port.name] = port
+        return input_combinator
+    # If there are scatter ports
+    else:
+        other_ports = dict(step.input_ports)
+        cartesian_combinator = CartesianProductInputCombinator(utils.random_name())
+        # Separate scatter ports from the other ones
+        scatter_ports = {}
+        for port_name, port in step.input_ports.items():
+            if port_name in scatter_inputs:
+                scatter_ports[port_name] = port
+                del other_ports[port_name]
+        scatter_name = utils.random_name()
+        scatter_combinator = DotProductInputCombinator(scatter_name)
+        scatter_combinator.ports = scatter_ports
+        cartesian_combinator.ports[scatter_name] = scatter_combinator
+        # Create a CartesianProduct combinator between the scatter ports and the DotProduct of the others
+        if other_ports:
+            dotproduct_name = utils.random_name()
+            dotproduct_combinator = DotProductInputCombinator(dotproduct_name)
+            dotproduct_combinator.ports = other_ports
+            cartesian_combinator.ports[dotproduct_name] = dotproduct_combinator
+        return cartesian_combinator
 
 
 class NamesStack(object):
@@ -255,7 +287,8 @@ class JupyterNotebookTranslator(object):
             target=target)
         # Process cell inputs
         cell_inputs = metadata['step'].get('in', [])
-        input_serializers = {}
+        input_tokens = {}
+        scatter_inputs = set()
         gather = False
         for element in cell_inputs:
             # If is a string, it refers to the name of a variable
@@ -270,6 +303,7 @@ class JupyterNotebookTranslator(object):
                 name = element.get('name') or element.get('valueFrom')
                 if 'scatter' in element:
                     port = ScatterInputPort(name=name, step=step)
+                    scatter_inputs.add(name)
                     gather = True
                 else:
                     port = DefaultInputPort(name=name, step=step)
@@ -277,42 +311,30 @@ class JupyterNotebookTranslator(object):
                 serializer = (metadata['serializers'][element['serializer']]
                               if isinstance(element['serializer'], Text)
                               else element['serializer']) if 'serializer' in element else None
-                if serializer is not None:
-                    input_serializers[name] = serializer
                 # Process port type
                 element_type = element['type']
                 # If type is equal to `file`, it refers to a file path in the local resource
                 if element_type == 'file':
                     port.token_processor = FileTokenProcessor(
                         port=port,
-                        name=name,
                         value=element.get('value'),
                         value_from=element.get('valueFrom'))
-                # If type is equal to `name`, it refers to a variable
-                elif element_type == 'name':
+                # If type is equal to `name` or `env`, it refers to a variable
+                elif element_type in ['name', 'env']:
                     port.token_processor = NameTokenProcessor(
                         port=port,
-                        name=name,
-                        token_type='name',
                         serializer=serializer,
                         compiler=cell.compiler,
                         value=element.get('value'),
                         value_from=element.get('valueFrom', name))
-                # If type is equal to `env`, add the value to shell env variables
-                elif element_type == 'env':
-                    port.token_processor = NameTokenProcessor(
-                        port=port,
-                        name=name,
-                        token_type='env',
-                        compiler=cell.compiler,
-                        serializer=serializer,
-                        value=element.get('value'),
-                        value_from=element.get('valueFrom'))
                 # If type is equal to `control`, simply add an empty dependency
                 elif element_type == 'control':
-                    port.token_processor = ControlTokenProcessor(
-                        port=port,
-                        name=name)
+                    port.token_processor = ControlTokenProcessor(port=port)
+                # Add command token
+                input_tokens[name] = JupyterCommandToken(
+                    name=name,
+                    token_type=element_type,
+                    serializer=serializer)
                 # Register step port
                 step.input_ports[port.name] = port
         # Retrieve inputs automatically if necessary
@@ -323,13 +345,12 @@ class JupyterNotebookTranslator(object):
                     port = DefaultInputPort(name=name, step=step)
                     port.token_processor = NameTokenProcessor(
                         port=port,
-                        name=name,
-                        token_type='name',
                         compiler=cell.compiler,
                         value_from=name)
+                    input_tokens[name] = JupyterCommandToken(name=name, token_type='name')
                     step.input_ports[port.name] = port
         # If outputs are defined for the current cell
-        output_serializers = {}
+        output_tokens = {}
         if 'out' in metadata['step']:
             for element in metadata['step']['out']:
                 # If is a string, it refers to the name of a variable
@@ -350,45 +371,40 @@ class JupyterNotebookTranslator(object):
                     serializer = (metadata['serializers'][element['serializer']]
                                   if isinstance(element['serializer'], Text)
                                   else element['serializer']) if 'serializer' in element else None
-                    if serializer is not None:
-                        output_serializers[name] = serializer
                     # Process port type
                     element_type = element['type']
                     # If type is equal to `file`, it refers to a file path in the remote resource
                     if element_type == 'file':
                         output_port.token_processor = FileTokenProcessor(
                             port=output_port,
-                            name=name,
                             value_from=element.get('valueFrom'))
-                    # If type is equal to `name`, it refers to a variable
-                    elif element_type == 'name':
+                    # If type is equal to `name` or `env`, it refers to a variable
+                    elif element_type in ['name', 'env']:
                         output_port.token_processor = NameTokenProcessor(
                             port=output_port,
-                            name=name,
-                            token_type='name',
                             compiler=cell.compiler,
                             serializer=serializer,
                             value_from=element.get('valueFrom', name))
                     # If type is equal to `control`, simply add an empty dependency
                     elif element_type == 'control':
-                        output_port.token_processor = ControlTokenProcessor(
-                            port=output_port,
-                            name=name)
+                        output_port.token_processor = ControlTokenProcessor(port=output_port)
+                    # Add command token
+                    output_tokens[name] = JupyterCommandToken(
+                        name=name,
+                        token_type=element_type,
+                        serializer=serializer)
                     # Register step port
                     step.output_ports[name] = output_port
         # Set input combinator for the step
-        input_combinator = DotProductInputCombinator(utils.random_name())
-        for port in step.input_ports.values():
-            input_combinator.ports[port.name] = port
-        step.input_combinator = input_combinator
+        step.input_combinator = _get_input_combinator(step=step, scatter_inputs=scatter_inputs)
         # Create the command to be executed remotely
         step.command = JupyterCommand(
             step=step,
             ast_nodes=cell.code,
             compiler=cell.compiler,
             interpreter=interpreter,
-            input_serializers=input_serializers,
-            output_serializers=output_serializers,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             autoawait=autoawait)
         return step
 

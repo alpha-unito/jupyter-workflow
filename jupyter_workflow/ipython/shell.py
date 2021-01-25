@@ -4,7 +4,7 @@ import os
 import sys
 import tempfile
 from contextvars import ContextVar
-from typing import MutableMapping, Any, List, Tuple
+from typing import MutableMapping, Any, List, Tuple, MutableSequence
 
 import IPython
 from IPython.core.interactiveshell import softspace
@@ -86,14 +86,11 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             token_processor = step.output_ports[port_name].token_processor
             token = await step.output_ports[port_name].get(output_retriever)
             token = await token_processor.collect_output(token, d)
-            token_type = token.value['type']
-            if token_type == 'file':
-                if 'name' in token.value:
-                    output_names[token.value['name']] = token.value['dst']
-                else:
-                    pass  # TODO: manipulate AST
-            elif token_type == 'name':
-                output_names[token.value['name']] = token.value['value']
+            if isinstance(token.job, MutableSequence):
+                output_names[token.name] = utils.flatten_list([t.value for t in token.value])
+            else:
+                output_names[token.name] = token.value
+
         # Update namespaces
         self.user_ns.update(output_names)
 
