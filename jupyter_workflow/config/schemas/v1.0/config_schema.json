@@ -130,6 +130,11 @@
             ]
           },
           "uniqueItems": true
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Path to the working directory",
+          "default": "${TMPDIR}/streamflow"
         }
       },
       "additionalProperties": false

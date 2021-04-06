@@ -284,6 +284,7 @@ class JupyterNotebookTranslator(object):
             name=cell.name,
             context=self.context,
             target=target)
+        step.workdir = metadata['step'].get('workdir')
         # Process cell inputs
         cell_inputs = metadata['step'].get('in', [])
         input_tokens = {}
