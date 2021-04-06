@@ -76,7 +76,7 @@ def _get_input_combinator(step: Step, scatter_inputs: Optional[Set[Text]] = None
                 scatter_ports[port_name] = port
                 del other_ports[port_name]
         scatter_name = utils.random_name()
-        scatter_combinator = DotProductInputCombinator(scatter_name)
+        scatter_combinator = CartesianProductInputCombinator(scatter_name)
         scatter_combinator.ports = scatter_ports
         cartesian_combinator.ports[scatter_name] = scatter_combinator
         # Create a CartesianProduct combinator between the scatter ports and the DotProduct of the others
