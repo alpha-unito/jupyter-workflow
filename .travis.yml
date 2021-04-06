@@ -22,12 +22,6 @@ before_deploy:
       git tag -a ${TRAVIS_TAG} -m "Jupyter Workflow Release ${JF_VERSION}"
     fi
 deploy:
-  - provider: releases
-    api_key:
-      secure: httTThmkxpkucPfUaHpE9sH5VcrOGcu7pQWQ4n3Cp1/6HTbdWUXQyP9z1NjlpIYoN9EMjNL9Qz80gTmHx392LlJmlckX3v4brWO8wQIg28BZ1YifMDou7b4igap7dqh0n65toSdgVBRakUoh2C7fNNVlXp1hQ88wcpRI8823t2GEC6p74/Lh32zjCAt5DErVxAfO3CQsEbOdA2NrRlkQjJ5d/oRl0FCHW2vXGfZEA4dYlknATKhN3zcXRL9DvAUKI4kEjVpTfUFtFmLAXpCBluVb7isbL0coO/hgno9Cnj5utH29vTOWJTkfPItEzJCyJPy9ZvDWhlHXnGRtBLpSxuuQbRhqhQPWbCu4drpnpz87X5nXPjHgcfva2DkzSAevI+o21L9vY0YzLVYIRb6OFS6AHOoe2CldGlWx25iCMcJj3b2ls9tyR0ZOB4JEcz2I9u4XDONcPVFvL7xQKYtwpH6C7N4HutW7kTnscVWZ86eZTsXkV0C9UPIkEmwRgjHHbPVl0iDj0u/Xu0wk8/gUdQWHAXJdrRqvSfUhpUpAjIK48dNGC7egR2iQDCpF7SEwZeqO0UfK5B8geHFY5J19JlIGPx82D/uVM7lXWkxuWkTZ3DQaoesIuFsSpiFJdZOwDhj3GnK4HktUoUQNQalv/fLGTCcV3q98BTbd9N2qkpE=
-    on:
-      branch: master
-      condition: ${JF_VERSION} != $(python -m pypisearch jupyter-workflow | grep -oP "(?<=^jupyter-workflow \()(.*)(?=\))")
   - provider: pypi
     user: __token__
     password:
