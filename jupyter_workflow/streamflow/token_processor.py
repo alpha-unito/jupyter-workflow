@@ -71,7 +71,7 @@ class FileTokenProcessor(DefaultTokenProcessor):
         data_locations = set()
         for resource in resources:
             data_locations.update(context.data_manager.get_data_locations(resource, token.value))
-        resources.update({l.resource for l in data_locations})
+        resources.update({loc.resource for loc in data_locations})
         return resources
 
     async def update_token(self, job: Job, token: Token) -> Token:

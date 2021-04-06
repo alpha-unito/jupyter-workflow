@@ -2,7 +2,6 @@ import ast
 import asyncio
 import hashlib
 import json
-import posixpath
 from collections import OrderedDict
 from itertools import islice
 from typing import MutableSequence, Text, Any, MutableMapping, Optional, Tuple, List, Set

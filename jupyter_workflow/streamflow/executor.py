@@ -64,6 +64,8 @@ def _serialize(compiler, namespace, args):
             name=k,
             value=v,
             serializer=predump_output_serializers.get(k)) for k, v in namespace.items() if k in args.output_name}
+    else:
+        namespace = {k: v for k, v in namespace.items() if k in args.output_name}
     with NamedTemporaryFile(delete=False) as f:
         dill.dump(namespace, f, recurse=True)
         return f.name

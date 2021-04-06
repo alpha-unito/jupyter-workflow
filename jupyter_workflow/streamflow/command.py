@@ -236,8 +236,7 @@ class JupyterCommand(Command):
                 env=environment,
                 stdin=stdin,
                 stdout=stdout,
-                stderr=stderr
-            )
+                stderr=stderr)
             result, error = await proc.communicate()
             exit_code = proc.returncode
             # Close streams
