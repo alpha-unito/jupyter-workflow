@@ -41,7 +41,13 @@
                     "type": "string"
                   },
                   "scatter": {
-                    "type": "integer"
+                    "type": "object",
+                    "properties": {
+                      "size": {
+                        "type": "integer",
+                        "default": "The number of elements in the list"
+                      }
+                    }
                   },
                   "serializer": {
                     "oneOf": [

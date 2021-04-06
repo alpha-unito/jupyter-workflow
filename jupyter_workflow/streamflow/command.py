@@ -2,7 +2,6 @@ import ast
 import asyncio
 import json
 import os
-import sys
 from asyncio.subprocess import STDOUT
 from tempfile import NamedTemporaryFile, TemporaryDirectory, mkdtemp
 from typing import MutableMapping, Any, Tuple, MutableSequence
@@ -131,7 +130,8 @@ class JupyterCommand(Command):
             src=path,
             src_job=None,
             dst=dest_path,
-            dst_job=job)
+            dst_job=job,
+            writable=True)
         return dest_path
 
     async def execute(self, job: Job) -> CommandOutput:
@@ -176,7 +176,7 @@ class JupyterCommand(Command):
                                       for k, v in output_serializers.items() if 'predump' in v}
         # Parse command
         cmd = [self.interpreter, executor_path]
-        if self.interpreter == 'ipython':
+        if os.path.basename(self.interpreter) == 'ipython':
             cmd.append('--')
         if self.autoawait:
             cmd.append("--autoawait")
@@ -226,9 +226,9 @@ class JupyterCommand(Command):
                 command=' \\\n\t'.join(cmd)
             ))
             # Configure standard streams
-            stdin = open(self.stdin, "rb") if self.stdin is not None else sys.stdin
-            stdout = open(self.stdout, "wb") if self.stdout is not None else sys.stdout
-            stderr = open(self.stderr, "wb") if self.stderr is not None else sys.stderr
+            stdin = open(self.stdin, "rb") if self.stdin is not None else None
+            stdout = open(self.stdout, "wb") if self.stdout is not None else None
+            stderr = open(self.stderr, "wb") if self.stderr is not None else None
             # Execute command
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -240,11 +240,11 @@ class JupyterCommand(Command):
             result, error = await proc.communicate()
             exit_code = proc.returncode
             # Close streams
-            if stdin is not sys.stdin:
+            if stdin is not None:
                 stdin.close()
-            if stdout is not sys.stderr:
+            if stdout is not None:
                 stdout.close()
-            if stderr is not sys.stderr:
+            if stderr is not None:
                 stderr.close()
         # Infer status
         status = Status.COMPLETED if exit_code == 0 else Status.FAILED
