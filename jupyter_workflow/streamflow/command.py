@@ -178,6 +178,8 @@ class JupyterCommand(Command):
         cmd = [self.interpreter, executor_path]
         if os.path.basename(self.interpreter) == 'ipython':
             cmd.append('--')
+        if self.step.workdir:
+            cmd.extend(["--workdir", self.step.workdir])
         if self.autoawait:
             cmd.append("--autoawait")
         cmd.extend(["--local-ns-file", user_ns_path])

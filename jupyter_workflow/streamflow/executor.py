@@ -6,6 +6,9 @@ import codeop
 import inspect
 import io
 import json
+import os
+import posixpath
+import shutil
 import sys
 import traceback
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
@@ -46,6 +49,7 @@ parser.add_argument('--local-ns-file', nargs='?')
 parser.add_argument('--postload-input-serializers', nargs='?')
 parser.add_argument('--predump-output-serializers', nargs='?')
 parser.add_argument('--output-name', action='append')
+parser.add_argument('--workdir', nargs='?')
 
 
 def _deserialize(path, default=None):
@@ -68,7 +72,12 @@ def _serialize(compiler, namespace, args):
         namespace = {k: v for k, v in namespace.items() if k in args.output_name}
     with NamedTemporaryFile(delete=False) as f:
         dill.dump(namespace, f, recurse=True)
-        return f.name
+        if args.workdir:
+            dest_path = os.path.join(args.workdir, os.path.basename(f.name))
+            shutil.move(f.name, dest_path)
+            return dest_path
+        else:
+            return f.name
 
 
 def compare(code_obj):
