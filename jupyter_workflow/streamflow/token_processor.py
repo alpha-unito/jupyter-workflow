@@ -31,10 +31,10 @@ class FileTokenProcessor(DefaultTokenProcessor):
         self.value_from: Optional[Text] = value_from
 
     async def collect_output(self, token: Token, output_dir: Text) -> Token:
-        if isinstance(token.value, MutableSequence):
+        if isinstance(token.job, MutableSequence) or isinstance(token.value, MutableSequence):
             return token.update(await asyncio.gather(*[asyncio.create_task(
-                self.collect_output(token.update(v), output_dir)
-            ) for v in token.value]))
+                self.collect_output(t if isinstance(token.job, MutableSequence) else token.update(t), output_dir)
+            ) for t in token.value]))
         context = self.port.step.context
         path_processor = get_path_processor(self.port.step)
         src_job = context.scheduler.get_job(token.job)
@@ -70,10 +70,11 @@ class FileTokenProcessor(DefaultTokenProcessor):
             await self.port.step.context.data_manager.register_path(connector, None, path)
 
     def get_related_resources(self, token: Token) -> Set[Text]:
-        if isinstance(token.value, MutableSequence):
+        if isinstance(token.job, MutableSequence) or isinstance(token.value, MutableSequence):
             resources = set()
-            for v in token.value:
-                resources.update(self.get_related_resources(token.update(v)))
+            for t in token.value:
+                resources.update(self.get_related_resources(
+                    t if isinstance(token.job, MutableSequence) else token.update(t)))
         context = self.port.step.context
         resources = set(context.scheduler.get_job(token.job).get_resources())
         data_locations = set()
@@ -83,10 +84,10 @@ class FileTokenProcessor(DefaultTokenProcessor):
         return resources
 
     async def update_token(self, job: Job, token: Token) -> Token:
-        if isinstance(token.value, MutableSequence):
+        if isinstance(token.job, MutableSequence) or isinstance(token.value, MutableSequence):
             return token.update(await asyncio.gather(*[asyncio.create_task(
-                self.update_token(job, token.update(v))
-            ) for v in token.value]))
+                self.update_token(job, t if isinstance(token.job, MutableSequence) else token.update(t))
+            ) for t in token.value]))
         path_processor = get_path_processor(self.port.step)
         dest_path = path_processor.join(job.input_directory, os.path.basename(token.value))
         await self.port.step.context.data_manager.transfer_data(
@@ -99,7 +100,7 @@ class FileTokenProcessor(DefaultTokenProcessor):
     async def weight_token(self, job: Job, token_value: Any) -> int:
         if isinstance(token_value, MutableSequence):
             return sum(await asyncio.gather(*[asyncio.create_task(
-                self.update_token(job, v)
+                self.weight_token(job, v)
             ) for v in token_value]))
         if job is not None and job.get_resources():
             connector = job.step.get_connector()

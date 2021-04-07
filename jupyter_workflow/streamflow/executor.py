@@ -72,12 +72,7 @@ def _serialize(compiler, namespace, args):
         namespace = {k: v for k, v in namespace.items() if k in args.output_name}
     with NamedTemporaryFile(delete=False) as f:
         dill.dump(namespace, f, recurse=True)
-        if args.workdir:
-            dest_path = os.path.join(args.workdir, os.path.basename(f.name))
-            shutil.move(f.name, dest_path)
-            return dest_path
-        else:
-            return f.name
+        return f.name
 
 
 def compare(code_obj):
@@ -176,6 +171,10 @@ async def run_code(args):
         output[CELL_OUTPUT] = command_output.getvalue().strip(),
         if args.output_name:
             output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
+            if args.workdir:
+                dest_path = os.path.join(args.workdir, os.path.basename(output[CELL_LOCAL_NS]))
+                shutil.move(output[CELL_LOCAL_NS], dest_path)
+                output[CELL_LOCAL_NS] = dest_path
     except BaseException:
         # Populate output object
         output[CELL_OUTPUT] = traceback.format_exc()
