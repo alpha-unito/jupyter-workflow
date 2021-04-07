@@ -3,6 +3,211 @@
   "$id": "config_schema.json",
   "type": "object",
   "definitions": {
+    "model": {
+      "$id": "#/definitions/model",
+      "type": "object",
+      "definitions": {
+        "docker": {
+          "$id": "#/definitions/model/definitions/docker",
+          "type": "object",
+          "$ref": "docker.json"
+        },
+        "docker-compose": {
+          "$id": "#/definitions/model/definitions/docker-compose",
+          "type": "object",
+          "$ref": "docker-compose.json"
+        },
+        "helm2": {
+          "$id": "#/definitions/model/definitions/helm2",
+          "type": "object",
+          "$ref": "helm2.json#"
+        },
+        "helm3": {
+          "$id": "#/definitions/model/definitions/helm3",
+          "type": "object",
+          "$ref": "helm3.json#"
+        },
+        "pbs": {
+          "$id": "#/definitions/model/definitions/pbs",
+          "type": "object",
+          "$ref": "queue_manager.json#"
+        },
+        "occam": {
+          "$id": "#/definitions/model/definitions/occam",
+          "type": "object",
+          "$ref": "occam.json#"
+        },
+        "singularity": {
+          "$id": "#/definitions/model/definitions/singularity",
+          "type": "object",
+          "$ref": "singularity.json#"
+        },
+        "slurm": {
+          "$id": "#/definitions/model/definitions/slurm",
+          "type": "object",
+          "$ref": "queue_manager.json#"
+        },
+        "ssh": {
+          "$id": "#/definitions/model/definitions/ssh",
+          "type": "object",
+          "$ref": "ssh.json#"
+        }
+      },
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "docker",
+            "docker-compose",
+            "helm",
+            "helm2",
+            "helm3",
+            "pbs",
+            "occam",
+            "singularity",
+            "slurm",
+            "ssh"
+          ]
+        },
+        "external": {
+          "type": "boolean",
+          "description": "If set, StreamFlow does not manage the lifecycle of the execution environment. This means that all required services must be up and running when the workflow starts",
+          "default": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "docker"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "$id": "#/definitions/model/properties/config",
+                "type": "object",
+                "$ref": "#/definitions/model/definitions/docker"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "docker-compose"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "$id": "#/definitions/model/properties/config",
+                "type": "object",
+                "$ref": "#/definitions/model/definitions/docker-compose"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "helm2"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "$id": "#/definitions/model/properties/config",
+                "type": "object",
+                "$ref": "#/definitions/model/definitions/helm2"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "pattern": "helm(3)?"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "$id": "#/definitions/model/properties/config",
+                "type": "object",
+                "$ref": "#/definitions/model/definitions/helm3"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "occam"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "$id": "#/definitions/model/properties/config",
+                "type": "object",
+                "$ref": "#/definitions/model/definitions/occam"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "slurm"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "$id": "#/definitions/model/properties/config",
+                "type": "object",
+                "$ref": "#/definitions/model/definitions/slurm"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ssh"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "$id": "#/definitions/model/properties/config",
+                "type": "object",
+                "$ref": "#/definitions/model/definitions/ssh"
+              }
+            }
+          }
+        }
+      ],
+      "required": [
+        "type",
+        "config"
+      ]
+    },
     "serializer": {
       "$id": "#/definitions/serializer",
       "type": "object",
@@ -151,7 +356,7 @@
             },
             {
               "type": "object",
-              "$ref": "https://raw.githubusercontent.com/alpha-unito/streamflow/feature/workflow-executor/streamflow/config/schemas/v1.0/config_schema.json#/definitions/model"
+              "$ref": "#/definitions/model"
             }
           ]
         },
@@ -183,7 +388,7 @@
       "type": "object",
       "patternProperties": {
         "^[a-z][a-zA-Z0-9._-]*$": {
-          "$ref": "https://raw.githubusercontent.com/alpha-unito/streamflow/feature/workflow-executor/streamflow/config/schemas/v1.0/config_schema.json#/definitions/model"
+          "$ref": "#/definitions/model"
         }
       },
       "additionalProperties": false
