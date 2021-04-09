@@ -131,6 +131,8 @@ def prepare_ns(namespace: Dict) -> Dict:
     namespace.setdefault('__builtins__', builtins)
     if 'get_ipython' in locals():
         namespace.setdefault('get_ipython', locals()['get_ipython'])
+    elif 'get_ipython' in globals():
+        namespace.setdefault('get_ipython', globals()['get_ipython'])
     return namespace
 
 
@@ -154,6 +156,8 @@ async def run_code(args):
                     value=v,
                     serializer=postload_input_serializers.get(k)
                 ) for k, v in user_ns.items()}
+            if 'get_ipython' in user_ns:
+                user_ns['get_ipython']().user_ns = user_ns
             # Exec cell code
             for node, mode in ast_nodes:
                 if mode == 'exec':
@@ -168,7 +172,9 @@ async def run_code(args):
                 else:
                     exec(code_obj, user_ns, user_ns)
         # Populate output object
-        output[CELL_OUTPUT] = command_output.getvalue().strip(),
+        output[CELL_OUTPUT] = command_output.getvalue().strip()
+        if 'get_ipython' in locals():
+            output[CELL_OUTPUT] = user_ns['Out'][-1].append(output[CELL_OUTPUT])
         if args.output_name:
             output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
             if args.workdir:
