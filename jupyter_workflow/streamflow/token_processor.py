@@ -42,10 +42,8 @@ class FileTokenProcessor(DefaultTokenProcessor):
             return token.update([t.value for t in token_list])
         context = self.port.step.context
         path_processor = get_path_processor(self.port.step)
-        src_job = context.scheduler.get_job(token.job)
         src_path = token.value
-        if not path_processor.isabs(src_path):
-            src_path = path_processor.join(src_job.output_directory, src_path)
+        src_job = context.scheduler.get_job(token.job)
         dest_path = os.path.join(output_dir, path_processor.basename(src_path))
         # Transfer file to local destination
         await self.port.step.context.data_manager.transfer_data(
@@ -60,6 +58,9 @@ class FileTokenProcessor(DefaultTokenProcessor):
     async def compute_token(self, job: Job, command_output: JupyterCommandOutput) -> Token:
         token_value = (self.value if self.value is not None else
                        command_output.user_ns.get(self.value_from))
+        path_processor = get_path_processor(self.port.step)
+        if not path_processor.isabs(token_value):
+            token_value = path_processor.join(job.output_directory, token_value)
         return Token(name=self.port.name, value=token_value, job=job.name)
 
     async def _register_data(self, job: Job, path: Text):
@@ -81,7 +82,8 @@ class FileTokenProcessor(DefaultTokenProcessor):
                 resources.update(self.get_related_resources(
                     t if isinstance(token.job, MutableSequence) else token.update(t)))
         context = self.port.step.context
-        resources = set(context.scheduler.get_job(token.job).get_resources())
+        src_job = context.scheduler.get_job(token.job)
+        resources = set(src_job.get_resources() if src_job else [])
         data_locations = set()
         for resource in resources:
             data_locations.update(context.data_manager.get_data_locations(resource, token.value))
