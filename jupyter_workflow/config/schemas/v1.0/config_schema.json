@@ -326,6 +326,7 @@
                     ],
                     "default": "name"
                   },
+                  "value": {},
                   "valueFrom": {
                     "type": "string"
                   }

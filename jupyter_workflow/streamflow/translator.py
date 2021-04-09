@@ -377,6 +377,7 @@ class JupyterNotebookTranslator(object):
                     if element_type == 'file':
                         output_port.token_processor = FileTokenProcessor(
                             port=output_port,
+                            value=element.get('value'),
                             value_from=element.get('valueFrom'))
                     # If type is equal to `name` or `env`, it refers to a variable
                     elif element_type in ['name', 'env']:
