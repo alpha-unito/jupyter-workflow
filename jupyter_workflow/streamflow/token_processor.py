@@ -59,7 +59,7 @@ class FileTokenProcessor(DefaultTokenProcessor):
         token_value = (self.value if self.value is not None else
                        command_output.user_ns.get(self.value_from))
         path_processor = get_path_processor(self.port.step)
-        if not path_processor.isabs(token_value):
+        if not path_processor.isabs(token_value) and job.output_directory:
             token_value = path_processor.join(job.output_directory, token_value)
         return Token(name=self.port.name, value=token_value, job=job.name)
 
