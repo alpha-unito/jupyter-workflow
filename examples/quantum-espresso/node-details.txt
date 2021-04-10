@@ -1,0 +1,45 @@
+The davinci-1 HPC facility is a private infrastructure, so not all the details can be disclosed for security reasons.
+The relevant details about compilation and linking of the QuantumEspresso CP executable, together with the MPI version
+used to perform the parallel run and some informations on the hardware equipment, are reported below:
+
+Version: CP v.6.7GPU
+
+Compilers:
+ - ifort version 2021.1
+ - icc version 2021.1
+
+Linked libraries (ldd output):
+ - linux-vdso.so.1 (0x0000155555551000)
+ - libmkl_scalapack_lp64.so.1 => /archive/apps/INTEL/OneAPI/mkl/2021.1.1/env/../lib/intel64/libmkl_scalapack_lp64.so.1 (0x0000155554a00000)
+ - libmkl_blacs_intelmpi_lp64.so.1 => /archive/apps/INTEL/OneAPI/mkl/2021.1.1/env/../lib/intel64/libmkl_blacs_intelmpi_lp64.so.1 (0x00001555547ba000)
+ - libmkl_intel_lp64.so.1 => /archive/apps/INTEL/OneAPI/mkl/2021.1.1/env/../lib/intel64/libmkl_intel_lp64.so.1 (0x0000155553a7f000)
+ - libmkl_intel_thread.so.1 => /archive/apps/INTEL/OneAPI/mkl/2021.1.1/env/../lib/intel64/libmkl_intel_thread.so.1 (0x0000155550186000)
+ - libmkl_core.so.1 => /archive/apps/INTEL/OneAPI/mkl/2021.1.1/env/../lib/intel64/libmkl_core.so.1 (0x00001555481c0000)
+ - libmpifort.so.12 => /archive/apps/INTEL/OneAPI/mpi/2021.1.1//lib/libmpifort.so.12 (0x0000155547e02000)
+ - libmpi.so.12 => /archive/apps/INTEL/OneAPI/mpi/2021.1.1//lib/release/libmpi.so.12 (0x0000155546a89000)
+ - libdl.so.2 => /lib64/libdl.so.2 (0x0000155546885000)
+ - librt.so.1 => /lib64/librt.so.1 (0x000015554667c000)
+ - libpthread.so.0 => /lib64/libpthread.so.0 (0x000015554645c000)
+ - libm.so.6 => /lib64/libm.so.6 (0x00001555460da000)
+ - libiomp5.so => /archive/apps/INTEL/OneAPI/compiler/2021.1.1/linux/compiler/lib/intel64_lin/libiomp5.so (0x0000155545cd3000)
+ - libc.so.6 => /lib64/libc.so.6 (0x0000155545911000)
+ - libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00001555456f9000)
+ - libfabric.so.1 => /archive/apps/INTEL/OneAPI/mpi/2021.1.1//libfabric/lib/libfabric.so.1 (0x00001555454b3000)
+ - /lib64/ld-linux-x86-64.so.2 (0x000015555532b000)
+
+MPI Version:
+    mpigcc for the Intel(R) MPI Library 2021.1 for Linux*
+    Copyright 2003-2020, Intel Corporation.
+    Using built-in specs.
+    COLLECT_GCC=gcc
+    COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/8/lto-wrapper
+    OFFLOAD_TARGET_NAMES=nvptx-none
+    OFFLOAD_TARGET_DEFAULT=1
+    Target: x86_64-redhat-linux
+    Configured with: ../configure --enable-bootstrap --enable-languages=c,c++,fortran,lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=http://bugzilla.redhat.com/bugzilla --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl --disable-libmpx --enable-offload-targets=nvptx-none --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-arch_32=x86-64 --build=x86_64-redhat-linux
+    Thread model: posix
+    gcc version 8.3.1 20191121 (Red Hat 8.3.1-5) (GCC)
+
+Node HW:
+ - 2 Intel Xeon Platinum 8260 sockets (24 cores, 2.40 GHz each)
+ - 1 TB RAM
