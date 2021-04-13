@@ -1,0 +1,10 @@
+#!/bin/bash
+SCRIPT_DIRECTORY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+# Build PyTorch image
+if [ ! -f "${SCRIPT_DIRECTORY}/pytorch.sif" ]; then
+  sudo singularity build ${SCRIPT_DIRECTORY}/pytorch.sif ${SCRIPT_DIRECTORY}/pytorch.def
+fi
+
+# Build CLAIRE-COVID19 image
+sudo singularity build ${SCRIPT_DIRECTORY}/claire-covid.sif ${SCRIPT_DIRECTORY}/claire-covid.def

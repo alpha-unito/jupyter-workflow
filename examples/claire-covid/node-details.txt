@@ -1,0 +1,565 @@
+SLURM_MEM_PER_CPU=1900
+LS_COLORS=rs=0:di=38;5;33:ln=38;5;51:mh=00:pi=40;38;5;11:so=38;5;13:do=38;5;5:bd=48;5;232;38;5;11:cd=48;5;232;38;5;3:or=48;5;232;38;5;9:mi=01;05;37;41:su=48;5;196;38;5;15:sg=48;5;11;38;5;16:ca=48;5;196;38;5;226:tw=48;5;10;38;5;16:ow=48;5;10;38;5;21:st=48;5;21;38;5;15:ex=38;5;40:*.tar=38;5;9:*.tgz=38;5;9:*.arc=38;5;9:*.arj=38;5;9:*.taz=38;5;9:*.lha=38;5;9:*.lz4=38;5;9:*.lzh=38;5;9:*.lzma=38;5;9:*.tlz=38;5;9:*.txz=38;5;9:*.tzo=38;5;9:*.t7z=38;5;9:*.zip=38;5;9:*.z=38;5;9:*.dz=38;5;9:*.gz=38;5;9:*.lrz=38;5;9:*.lz=38;5;9:*.lzo=38;5;9:*.xz=38;5;9:*.zst=38;5;9:*.tzst=38;5;9:*.bz2=38;5;9:*.bz=38;5;9:*.tbz=38;5;9:*.tbz2=38;5;9:*.tz=38;5;9:*.deb=38;5;9:*.rpm=38;5;9:*.jar=38;5;9:*.war=38;5;9:*.ear=38;5;9:*.sar=38;5;9:*.rar=38;5;9:*.alz=38;5;9:*.ace=38;5;9:*.zoo=38;5;9:*.cpio=38;5;9:*.7z=38;5;9:*.rz=38;5;9:*.cab=38;5;9:*.wim=38;5;9:*.swm=38;5;9:*.dwm=38;5;9:*.esd=38;5;9:*.jpg=38;5;13:*.jpeg=38;5;13:*.mjpg=38;5;13:*.mjpeg=38;5;13:*.gif=38;5;13:*.bmp=38;5;13:*.pbm=38;5;13:*.pgm=38;5;13:*.ppm=38;5;13:*.tga=38;5;13:*.xbm=38;5;13:*.xpm=38;5;13:*.tif=38;5;13:*.tiff=38;5;13:*.png=38;5;13:*.svg=38;5;13:*.svgz=38;5;13:*.mng=38;5;13:*.pcx=38;5;13:*.mov=38;5;13:*.mpg=38;5;13:*.mpeg=38;5;13:*.m2v=38;5;13:*.mkv=38;5;13:*.webm=38;5;13:*.ogm=38;5;13:*.mp4=38;5;13:*.m4v=38;5;13:*.mp4v=38;5;13:*.vob=38;5;13:*.qt=38;5;13:*.nuv=38;5;13:*.wmv=38;5;13:*.asf=38;5;13:*.rm=38;5;13:*.rmvb=38;5;13:*.flc=38;5;13:*.avi=38;5;13:*.fli=38;5;13:*.flv=38;5;13:*.gl=38;5;13:*.dl=38;5;13:*.xcf=38;5;13:*.xwd=38;5;13:*.yuv=38;5;13:*.cgm=38;5;13:*.emf=38;5;13:*.ogv=38;5;13:*.ogx=38;5;13:*.aac=38;5;45:*.au=38;5;45:*.flac=38;5;45:*.m4a=38;5;45:*.mid=38;5;45:*.midi=38;5;45:*.mka=38;5;45:*.mp3=38;5;45:*.mpc=38;5;45:*.ogg=38;5;45:*.ra=38;5;45:*.wav=38;5;45:*.oga=38;5;45:*.opus=38;5;45:*.spx=38;5;45:*.xspf=38;5;45:
+LC_MEASUREMENT=it_IT.UTF-8
+SLURM_NODEID=0
+SLURM_TASK_PID=21820
+SSH_CONNECTION=93.34.153.89 59700 130.186.16.241 22
+LC_PAPER=it_IT.UTF-8
+LC_MONETARY=it_IT.UTF-8
+SLURM_PRIO_PROCESS=0
+_=/usr/bin/env
+LANG=en_US.UTF-8
+HISTCONTROL=ignoredups
+HOSTNAME=r237n13
+SLURM_CPUS_PER_TASK=32
+ENVIRONMENT=BATCH
+CINECA_SCRATCH=/m100_scratch/userexternal/USER
+LOADEDMODULES_modshare=profile/base:1
+ROCR_VISIBLE_DEVICES=0,1,2,3
+SLURM_PROCID=0
+SLURM_JOB_GID=25200
+DRES=/gss/gss_work
+SLURMD_NODENAME=r237n13
+SLURM_TASKS_PER_NODE=1
+S_COLORS=auto
+HPC_SYSTEM=m100
+LC_NAME=it_IT.UTF-8
+XDG_SESSION_ID=493633
+MODULES_CMD=/cineca/prod/opt/environment/module/4.5.0/none/libexec/modulecmd.tcl
+USER=USER
+SLURM_NNODES=1
+ENV=/cineca/prod/opt/environment/module/4.5.0/none/init/profile.sh
+SLURM_NTASKS_PER_NODE=1
+SLURM_JOB_NODELIST=r237n13
+HOME=/m100/home/userexternal/USER
+SLURM_CLUSTER_NAME=m100
+SLURM_NODELIST=r237n13
+SSH_CLIENT=93.34.153.89 59700 22
+SLURM_NTASKS=1
+TAPE=/gss/gss_work/tape/userexternal/USER
+SLURM_JOB_CPUS_PER_NODE=32
+BASH_ENV=/cineca/prod/opt/environment/module/current/none/init/bash_without_modulerc
+SLURM_TOPOLOGY_ADDR=rootSwitch.island3.r235u34ibs,r235u23ibs,r235u33ibs,r235u19ibs,r235u22ibs,r235u21ibs,r235u32ibs,r235u29ibs,r235u20ibs,r235u31ibs,r235u28ibs,r235u30ibs,r235u27ibs,r235u26ibs,r235u25ibs,r235u24ibs.r237u21ibl.r237n13
+_LMFILES__modshare=/cineca/prod/opt/modulefiles/profiles/profile/base:1
+MODULES_LMALTNAME=profile/base&profile/default&profile
+SLURM_WORKING_CLUSTER=m100:10.38.1.199:6817:9216:109
+SLURM_JOB_NAME=claire-covid
+LC_ADDRESS=it_IT.UTF-8
+TMPDIR=/scratch_local/slurm_job.2858682
+LC_NUMERIC=it_IT.UTF-8
+SLURM_JOB_GPUS=0,1,2,3
+SLURM_JOBID=2858682
+SLURM_CONF=/var/spool/slurmd/conf-cache/slurm.conf
+LOADEDMODULES=profile/base
+SLURM_NODE_ALIASES=(null)
+SLURM_JOB_QOS=normal
+SLURM_TOPOLOGY_ADDR_PATTERN=switch.switch.switch.switch.node
+SSH_TTY=/dev/pts/52
+LESSSECURE=1
+MAIL=/var/spool/mail/USER
+SLURM_CPUS_ON_NODE=32
+SLURM_JOB_NUM_NODES=1
+TERM=xterm-256color
+SHELL=/bin/bash
+SLURM_JOB_UID=31997
+SLURM_JOB_PARTITION=m100_usr_prod
+MODULES_LMALTNAME_modshare=profile/base&profile/default&profile:1
+BA_MPM_PROFILE=base
+SLURM_JOB_USER=USER
+CUDA_VISIBLE_DEVICES=0,1,2,3
+SLURM_NPROCS=1
+SHLVL=3
+SLURM_SUBMIT_HOST=login01
+MANPATH=/cineca/prod/opt/environment/module/4.5.0/none/share/man:/usr/local/share/man:/usr/share/man:/opt/slurm/current/share/man
+LC_TELEPHONE=it_IT.UTF-8
+MODULEPATH=/cineca/prod/opt/modulefiles/profiles:/cineca/prod/opt/modulefiles/base/data:/cineca/prod/opt/modulefiles/base/environment:/cineca/prod/opt/modulefiles/base/libraries:/cineca/prod/opt/modulefiles/base/compilers:/cineca/prod/opt/modulefiles/base/tools:/cineca/prod/opt/modulefiles/base/applications
+SLURM_GTIDS=0
+LOGNAME=USER
+DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/31997/bus
+XDG_RUNTIME_DIR=/run/user/31997
+MODULEPATH_modshare=/cineca/prod/opt/modulefiles/base/applications:1:/cineca/prod/opt/modulefiles/base/environment:1:/cineca/prod/opt/modulefiles/base/libraries:1:/cineca/prod/opt/modulefiles/base/tools:1:/cineca/prod/opt/modulefiles/profiles:1:/cineca/prod/opt/modulefiles/base/data:1:/cineca/prod/opt/modulefiles/base/compilers:1
+PATH=/cineca/bin:/cineca/prod/opt/environment/module/4.5.0/none/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/slurm/current/bin:/opt/slurm/current/sbin:/m100/home/userexternal/USER/.local/bin:/m100/home/userexternal/USER/bin
+SLURM_JOB_ID=2858682
+LC_IDENTIFICATION=it_IT.UTF-8
+_LMFILES_=/cineca/prod/opt/modulefiles/profiles/profile/base
+MODULESHOME=/cineca/prod/opt/environment/module/4.5.0/none
+HISTSIZE=1000
+SLURM_LOCALID=0
+GPU_DEVICE_ORDINAL=0,1,2,3
+LESSOPEN=||/usr/bin/lesspipe.sh %s
+LC_TIME=it_IT.UTF-8
+BASH_FUNC_module%%=() {  _module_raw "$@" 2>&1
+}
+BASH_FUNC__module_raw%%=() {  unset _mlshdbg;
+ if [ "${MODULES_SILENT_SHELL_DEBUG:-0}" = '1' ]; then
+ case "$-" in
+ *v*x*)
+ set +vx;
+ _mlshdbg='vx'
+ ;;
+ *v*)
+ set +v;
+ _mlshdbg='v'
+ ;;
+ *x*)
+ set +x;
+ _mlshdbg='x'
+ ;;
+ *)
+ _mlshdbg=''
+ ;;
+ esac;
+ fi;
+ unset _mlre _mlIFS;
+ if [ -n "${IFS+x}" ]; then
+ _mlIFS=$IFS;
+ fi;
+ IFS=' ';
+ for _mlv in ${MODULES_RUN_QUARANTINE:-};
+ do
+ if [ "${_mlv}" = "${_mlv##*[!A-Za-z0-9_]}" -a "${_mlv}" = "${_mlv#[0-9]}" ]; then
+ if [ -n "`eval 'echo ${'$_mlv'+x}'`" ]; then
+ _mlre="${_mlre:-}${_mlv}_modquar='`eval 'echo ${'$_mlv'}'`' ";
+ fi;
+ _mlrv="MODULES_RUNENV_${_mlv}";
+ _mlre="${_mlre:-}${_mlv}='`eval 'echo ${'$_mlrv':-}'`' ";
+ fi;
+ done;
+ if [ -n "${_mlre:-}" ]; then
+ eval `eval ${_mlre}/usr/bin/tclsh /cineca/prod/opt/environment/module/4.5.0/none/libexec/modulecmd.tcl bash '"$@"'`;
+ else
+ eval `/usr/bin/tclsh /cineca/prod/opt/environment/module/4.5.0/none/libexec/modulecmd.tcl bash "$@"`;
+ fi;
+ _mlstatus=$?;
+ if [ -n "${_mlIFS+x}" ]; then
+ IFS=$_mlIFS;
+ else
+ unset IFS;
+ fi;
+ unset _mlre _mlv _mlrv _mlIFS;
+ if [ -n "${_mlshdbg:-}" ]; then
+ set -$_mlshdbg;
+ fi;
+ unset _mlshdbg;
+ return $_mlstatus
+}
+BASH_FUNC_switchml%%=() {  typeset swfound=1;
+ if [ "${MODULES_USE_COMPAT_VERSION:-0}" = '1' ]; then
+ typeset swname='main';
+ if [ -e /cineca/prod/opt/environment/module/4.5.0/none/libexec/modulecmd.tcl ]; then
+ typeset swfound=0;
+ unset MODULES_USE_COMPAT_VERSION;
+ fi;
+ else
+ typeset swname='compatibility';
+ if [ -e /cineca/prod/opt/environment/module/4.5.0/none/libexec/modulecmd-compat ]; then
+ typeset swfound=0;
+ MODULES_USE_COMPAT_VERSION=1;
+ export MODULES_USE_COMPAT_VERSION;
+ fi;
+ fi;
+ if [ $swfound -eq 0 ]; then
+ echo "Switching to Modules $swname version";
+ source /cineca/prod/opt/environment/module/4.5.0/none/init/bash;
+ else
+ echo "Cannot switch to Modules $swname version, command not found";
+ return 1;
+ fi
+}
+BASH_FUNC_ml%%=() {  module ml "$@"
+}
+++ lsb_release -a
+./collect_environment.sh: line 11: lsb_release: command not found
+++ uname -a
+Linux r237n13 4.18.0-147.13.2.el8_1.ppc64le #1 SMP Wed May 13 15:23:36 UTC 2020 ppc64le ppc64le ppc64le GNU/Linux
+++ lscpu
+Architecture:        ppc64le
+Byte Order:          Little Endian
+CPU(s):              128
+On-line CPU(s) list: 0-127
+Thread(s) per core:  4
+Core(s) per socket:  16
+Socket(s):           2
+NUMA node(s):        6
+Model:               2.1 (pvr 004e 1201)
+Model name:          POWER9, altivec supported
+CPU max MHz:         3800,0000
+CPU min MHz:         2300,0000
+L1d cache:           32K
+L1i cache:           32K
+L2 cache:            512K
+L3 cache:            10240K
+NUMA node0 CPU(s):   0-63
+NUMA node8 CPU(s):   64-127
+NUMA node252 CPU(s):
+NUMA node253 CPU(s):
+NUMA node254 CPU(s):
+NUMA node255 CPU(s):
+++ cat /proc/meminfo
+MemTotal:       329871872 kB
+MemFree:        306459264 kB
+MemAvailable:   307002112 kB
+Buffers:              64 kB
+Cached:           994688 kB
+SwapCached:        49152 kB
+Active:          1094208 kB
+Inactive:         671808 kB
+Active(anon):     592320 kB
+Inactive(anon):   181440 kB
+Active(file):     501888 kB
+Inactive(file):   490368 kB
+Unevictable:     4194304 kB
+Mlocked:         4194304 kB
+SwapTotal:       4194240 kB
+SwapFree:        3494528 kB
+Dirty:              4416 kB
+Writeback:             0 kB
+AnonPages:       4947008 kB
+Mapped:           601216 kB
+Shmem:              2496 kB
+KReclaimable:    1063680 kB
+Slab:           13102720 kB
+SReclaimable:    1063680 kB
+SUnreclaim:     12039040 kB
+KernelStack:       40608 kB
+PageTables:        42432 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    169130176 kB
+Committed_AS:    6081600 kB
+VmallocTotal:   549755813888 kB
+VmallocUsed:           0 kB
+VmallocChunk:          0 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+CmaTotal:       13434880 kB
+CmaFree:        13433792 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+++ inxi -F -c0
+./collect_environment.sh: line 15: inxi: command not found
+++ lsblk -a
+NAME                           MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+nvme0n1                        259:0    0  1,5T  0 disk
+├─nvme0n1p1                    259:1    0   10M  0 part
+├─nvme0n1p2                    259:2    0    1G  0 part /boot
+└─nvme0n1p3                    259:3    0  1,5T  0 part
+  ├─system_vg-root_lv          253:0    0  4,9G  0 lvm  /
+  ├─system_vg-swap_lv          253:1    0    4G  0 lvm  [SWAP]
+  ├─system_vg-usr_lv           253:2    0  9,8G  0 lvm  /usr
+  ├─system_vg-scratch_local_lv 253:3    0    1T  0 lvm  /scratch_local
+  ├─system_vg-tmp_lv           253:4    0  9,8G  0 lvm  /tmp
+  ├─system_vg-opt_lv           253:5    0  9,8G  0 lvm  /opt
+  └─system_vg-var_lv           253:6    0 19,5G  0 lvm  /var
+++ lsscsi -s
+[N:0:33:1]   disk    PCIe3 1.6TB NVMe Flash Adapter III x8__1   /dev/nvme0n1  1.60TB
+++ module list
+++ _module_raw list
+++ unset _mlshdbg
+++ '[' 0 = 1 ']'
+++ unset _mlre _mlIFS
+++ '[' -n x ']'
+++ _mlIFS='
+'
+++ IFS=' '
+++ '[' -n '' ']'
++++ /usr/bin/tclsh /cineca/prod/opt/environment/module/4.5.0/none/libexec/modulecmd.tcl bash list
+Currently Loaded Modulefiles:
+ 1) profile/base(default)
+++ eval
+++ _mlstatus=0
+++ '[' -n x ']'
+++ IFS='
+'
+++ unset _mlre _mlv _mlrv _mlIFS
+++ '[' -n '' ']'
+++ unset _mlshdbg
+++ return 0
+++ nvidia-smi
+Tue Apr 13 19:45:41 2021
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 450.51.06    Driver Version: 450.51.06    CUDA Version: 11.0     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Tesla V100-SXM2...  On   | 00000004:04:00.0 Off |                    0 |
+| N/A   40C    P0    38W / 300W |      9MiB / 16160MiB |      0%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla V100-SXM2...  On   | 00000004:05:00.0 Off |                    0 |
+| N/A   46C    P0    40W / 300W |      9MiB / 16160MiB |      0%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   2  Tesla V100-SXM2...  On   | 00000035:03:00.0 Off |                    0 |
+| N/A   37C    P0    41W / 300W |      9MiB / 16160MiB |      0%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   3  Tesla V100-SXM2...  On   | 00000035:04:00.0 Off |                    0 |
+| N/A   41C    P0    42W / 300W |      9MiB / 16160MiB |      0%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|    0   N/A  N/A     28848      G   /usr/libexec/Xorg                   8MiB |
+|    1   N/A  N/A     28849      G   /usr/libexec/Xorg                   8MiB |
+|    2   N/A  N/A     28850      G   /usr/libexec/Xorg                   8MiB |
+|    3   N/A  N/A     28851      G   /usr/libexec/Xorg                   8MiB |
++-----------------------------------------------------------------------------+
+++ lshw -short -quiet -sanitize
+++ cat
+WARNING: you should run this program as super-user.
+H/W path      Device      Class      Description
+================================================
+                          system     8335-GTG (ibm,witherspoon)
+/0                        bus        Motherboard
+/0/16                     processor  02AA969
+/0/16/0                   memory     32KiB L1 Cache (instruction)
+/0/16/1                   memory     32KiB L1 Cache (data)
+/0/16/2                   memory     512KiB L2 Cache (unified)
+/0/16/3                   memory     10MiB L3 Cache (unified)
+/0/20                     processor  02AA969
+/0/20/0                   memory     32KiB L1 Cache (instruction)
+/0/20/1                   memory     32KiB L1 Cache (data)
+/0/20/2                   memory     512KiB L2 Cache (unified)
+/0/20/3                   memory     10MiB L3 Cache (unified)
+/0/24                     processor  02AA969
+/0/24/0                   memory     32KiB L1 Cache (instruction)
+/0/24/1                   memory     32KiB L1 Cache (data)
+/0/24/2                   memory     512KiB L2 Cache (unified)
+/0/24/3                   memory     10MiB L3 Cache (unified)
+/0/28                     processor  02AA969
+/0/28/0                   memory     32KiB L1 Cache (instruction)
+/0/28/1                   memory     32KiB L1 Cache (data)
+/0/28/2                   memory     512KiB L2 Cache (unified)
+/0/28/3                   memory     10MiB L3 Cache (unified)
+/0/40                     processor  02AA969
+/0/40/0                   memory     32KiB L1 Cache (instruction)
+/0/40/1                   memory     32KiB L1 Cache (data)
+/0/40/2                   memory     512KiB L2 Cache (unified)
+/0/40/3                   memory     10MiB L3 Cache (unified)
+/0/44                     processor  02AA969
+/0/44/0                   memory     32KiB L1 Cache (instruction)
+/0/44/1                   memory     32KiB L1 Cache (data)
+/0/44/2                   memory     512KiB L2 Cache (unified)
+/0/44/3                   memory     10MiB L3 Cache (unified)
+/0/48                     processor  02AA969
+/0/48/0                   memory     32KiB L1 Cache (instruction)
+/0/48/1                   memory     32KiB L1 Cache (data)
+/0/48/2                   memory     512KiB L2 Cache (unified)
+/0/48/3                   memory     10MiB L3 Cache (unified)
+/0/52                     processor  02AA969
+/0/52/0                   memory     32KiB L1 Cache (instruction)
+/0/52/1                   memory     32KiB L1 Cache (data)
+/0/52/2                   memory     512KiB L2 Cache (unified)
+/0/52/3                   memory     10MiB L3 Cache (unified)
+/0/56                     processor  02AA969
+/0/56/0                   memory     32KiB L1 Cache (instruction)
+/0/56/1                   memory     32KiB L1 Cache (data)
+/0/56/2                   memory     512KiB L2 Cache (unified)
+/0/56/3                   memory     10MiB L3 Cache (unified)
+/0/60                     processor  02AA969
+/0/60/0                   memory     32KiB L1 Cache (instruction)
+/0/60/1                   memory     32KiB L1 Cache (data)
+/0/60/2                   memory     512KiB L2 Cache (unified)
+/0/60/3                   memory     10MiB L3 Cache (unified)
+/0/72                     processor  02AA969
+/0/72/0                   memory     32KiB L1 Cache (instruction)
+/0/72/1                   memory     32KiB L1 Cache (data)
+/0/72/2                   memory     512KiB L2 Cache (unified)
+/0/72/3                   memory     10MiB L3 Cache (unified)
+/0/76                     processor  02AA969
+/0/76/0                   memory     32KiB L1 Cache (instruction)
+/0/76/1                   memory     32KiB L1 Cache (data)
+/0/76/2                   memory     512KiB L2 Cache (unified)
+/0/76/3                   memory     10MiB L3 Cache (unified)
+/0/88                     processor  02AA969
+/0/88/0                   memory     32KiB L1 Cache (instruction)
+/0/88/1                   memory     32KiB L1 Cache (data)
+/0/88/2                   memory     512KiB L2 Cache (unified)
+/0/88/3                   memory     10MiB L3 Cache (unified)
+/0/92                     processor  02AA969
+/0/92/0                   memory     32KiB L1 Cache (instruction)
+/0/92/1                   memory     32KiB L1 Cache (data)
+/0/92/2                   memory     512KiB L2 Cache (unified)
+/0/92/3                   memory     10MiB L3 Cache (unified)
+/0/8                      processor  02AA969
+/0/8/0                    memory     32KiB L1 Cache (instruction)
+/0/8/1                    memory     32KiB L1 Cache (data)
+/0/8/2                    memory     512KiB L2 Cache (unified)
+/0/8/3                    memory     10MiB L3 Cache (unified)
+/0/2048                   processor  02AA969
+/0/2048/0                 memory     32KiB L1 Cache (instruction)
+/0/2048/1                 memory     32KiB L1 Cache (data)
+/0/2048/2                 memory     512KiB L2 Cache (unified)
+/0/2048/3                 memory     10MiB L3 Cache (unified)
+/0/2052                   processor  02AA969
+/0/2052/0                 memory     32KiB L1 Cache (instruction)
+/0/2052/1                 memory     32KiB L1 Cache (data)
+/0/2052/2                 memory     512KiB L2 Cache (unified)
+/0/2052/3                 memory     10MiB L3 Cache (unified)
+/0/2072                   processor  02AA969
+/0/2072/0                 memory     32KiB L1 Cache (instruction)
+/0/2072/1                 memory     32KiB L1 Cache (data)
+/0/2072/2                 memory     512KiB L2 Cache (unified)
+/0/2072/3                 memory     10MiB L3 Cache (unified)
+/0/2076                   processor  02AA969
+/0/2076/0                 memory     32KiB L1 Cache (instruction)
+/0/2076/1                 memory     32KiB L1 Cache (data)
+/0/2076/2                 memory     512KiB L2 Cache (unified)
+/0/2076/3                 memory     10MiB L3 Cache (unified)
+/0/2080                   processor  02AA969
+/0/2080/0                 memory     32KiB L1 Cache (instruction)
+/0/2080/1                 memory     32KiB L1 Cache (data)
+/0/2080/2                 memory     512KiB L2 Cache (unified)
+/0/2080/3                 memory     10MiB L3 Cache (unified)
+/0/2084                   processor  02AA969
+/0/2084/0                 memory     32KiB L1 Cache (instruction)
+/0/2084/1                 memory     32KiB L1 Cache (data)
+/0/2084/2                 memory     512KiB L2 Cache (unified)
+/0/2084/3                 memory     10MiB L3 Cache (unified)
+/0/2088                   processor  02AA969
+/0/2088/0                 memory     32KiB L1 Cache (instruction)
+/0/2088/1                 memory     32KiB L1 Cache (data)
+/0/2088/2                 memory     512KiB L2 Cache (unified)
+/0/2088/3                 memory     10MiB L3 Cache (unified)
+/0/2092                   processor  02AA969
+/0/2092/0                 memory     32KiB L1 Cache (instruction)
+/0/2092/1                 memory     32KiB L1 Cache (data)
+/0/2092/2                 memory     512KiB L2 Cache (unified)
+/0/2092/3                 memory     10MiB L3 Cache (unified)
+/0/2112                   processor  02AA969
+/0/2112/0                 memory     32KiB L1 Cache (instruction)
+/0/2112/1                 memory     32KiB L1 Cache (data)
+/0/2112/2                 memory     512KiB L2 Cache (unified)
+/0/2112/3                 memory     10MiB L3 Cache (unified)
+/0/2116                   processor  02AA969
+/0/2116/0                 memory     32KiB L1 Cache (instruction)
+/0/2116/1                 memory     32KiB L1 Cache (data)
+/0/2116/2                 memory     512KiB L2 Cache (unified)
+/0/2116/3                 memory     10MiB L3 Cache (unified)
+/0/2120                   processor  02AA969
+/0/2120/0                 memory     32KiB L1 Cache (instruction)
+/0/2120/1                 memory     32KiB L1 Cache (data)
+/0/2120/2                 memory     512KiB L2 Cache (unified)
+/0/2120/3                 memory     10MiB L3 Cache (unified)
+/0/2124                   processor  02AA969
+/0/2124/0                 memory     32KiB L1 Cache (instruction)
+/0/2124/1                 memory     32KiB L1 Cache (data)
+/0/2124/2                 memory     512KiB L2 Cache (unified)
+/0/2124/3                 memory     10MiB L3 Cache (unified)
+/0/2128                   processor  02AA969
+/0/2128/0                 memory     32KiB L1 Cache (instruction)
+/0/2128/1                 memory     32KiB L1 Cache (data)
+/0/2128/2                 memory     512KiB L2 Cache (unified)
+/0/2128/3                 memory     10MiB L3 Cache (unified)
+/0/2132                   processor  02AA969
+/0/2132/0                 memory     32KiB L1 Cache (instruction)
+/0/2132/1                 memory     32KiB L1 Cache (data)
+/0/2132/2                 memory     512KiB L2 Cache (unified)
+/0/2132/3                 memory     10MiB L3 Cache (unified)
+/0/2136                   processor  02AA969
+/0/2136/0                 memory     32KiB L1 Cache (instruction)
+/0/2136/1                 memory     32KiB L1 Cache (data)
+/0/2136/2                 memory     512KiB L2 Cache (unified)
+/0/2136/3                 memory     10MiB L3 Cache (unified)
+/0/2140                   processor  02AA969
+/0/2140/0                 memory     32KiB L1 Cache (instruction)
+/0/2140/1                 memory     32KiB L1 Cache (data)
+/0/2140/2                 memory     512KiB L2 Cache (unified)
+/0/2140/3                 memory     10MiB L3 Cache (unified)
+/0/12                     processor  02AA969
+/0/12/0                   memory     32KiB L1 Cache (instruction)
+/0/12/1                   memory     32KiB L1 Cache (data)
+/0/12/2                   memory     512KiB L2 Cache (unified)
+/0/12/3                   memory     10MiB L3 Cache (unified)
+/0/0                      memory     319GiB System memory
+/0/0/0                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/1                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/2                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/3                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/4                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/5                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/6                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/7                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/8                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/9                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/a                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/b                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/c                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/d                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/e                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/0/f                    memory     16GiB RDIMM DDR4 2666 MHz (0,4ns)
+/0/1                      generic    bmc-firmware-version
+/0/2                      generic    buildroot
+/0/3                      generic    capp-ucode
+/0/4                      generic    hostboot
+/0/5                      generic    hostboot-binaries
+/0/6                      generic    linux
+/0/7                      generic    machine-xml
+/0/9                      generic    occ
+/0/a                      generic    petitboot
+/0/b                      generic    sbe
+/0/c                      generic    skiboot
+/0/d                      generic    version
+/0/100                    bridge     POWER9 Host Bridge (PHB4)
+/0/101                    bridge     POWER9 Host Bridge (PHB4)
+/0/101/0                  bus        TUSB73x0 SuperSpeed USB 3.0 xHCI Host Controller
+/0/102                    bridge     POWER9 Host Bridge (PHB4)
+/0/102/0                  bridge     AST1150 PCI-to-PCI Bridge
+/0/102/0/0                display    ASPEED Graphics Family
+/0/103                    bridge     POWER9 Host Bridge (PHB4)
+/0/103/0      ib0         network    MT27800 Family [ConnectX-5]
+/0/104                    bridge     POWER9 Host Bridge (PHB4)
+/0/104/0                  bridge     PLX Technology, Inc.
+/0/104/0/2                bridge     PLX Technology, Inc.
+/0/104/0/2/0              storage    88SE9235 PCIe 2.0 x2 4-port SATA 6 Gb/s Controller
+/0/104/0/a                bridge     PLX Technology, Inc.
+/0/104/0/a/0              display    GV100GL [Tesla V100 SXM2 16GB]
+/0/104/0/b                bridge     PLX Technology, Inc.
+/0/104/0/b/0              display    GV100GL [Tesla V100 SXM2 16GB]
+/0/104/0/c                bridge     PLX Technology, Inc.
+/0/104/0.1                generic    PLX Technology, Inc.
+/0/104/0.2                generic    PLX Technology, Inc.
+/0/104/0.3                generic    PLX Technology, Inc.
+/0/104/0.4                generic    PLX Technology, Inc.
+/0/105                    bridge     POWER9 Host Bridge (PHB4)
+/0/105/0      enP5p1s0f0  network    NetXtreme BCM5719 Gigabit Ethernet PCIe
+/0/105/0.1    enP5p1s0f1  network    NetXtreme BCM5719 Gigabit Ethernet PCIe
+/0/106                    bridge     IBM
+/0/107                    bridge     IBM
+/0/108                    bridge     IBM
+/0/109                    bridge     IBM
+/0/10a                    bridge     IBM
+/0/10b                    bridge     IBM
+/0/10c                    bridge     IBM
+/0/10d                    bridge     IBM
+/0/10e                    bridge     IBM
+/0/10f                    bridge     IBM
+/0/110                    bridge     IBM
+/0/111                    bridge     IBM
+/0/112                    bridge     POWER9 Host Bridge (PHB4)
+/0/112/0                  storage    NVMe SSD Controller 172Xa/172Xb
+/0/113                    bridge     POWER9 Host Bridge (PHB4)
+/0/113/0      ib1         network    MT27800 Family [ConnectX-5]
+/0/114                    bridge     POWER9 Host Bridge (PHB4)
+/0/115                    bridge     POWER9 Host Bridge (PHB4)
+/0/115/0                  bridge     PLX Technology, Inc.
+/0/115/0/4                bridge     PLX Technology, Inc.
+/0/115/0/4/0              display    GV100GL [Tesla V100 SXM2 16GB]
+/0/115/0/5                bridge     PLX Technology, Inc.
+/0/115/0/5/0              display    GV100GL [Tesla V100 SXM2 16GB]
+/0/115/0/d                bridge     PLX Technology, Inc.
+WARNING: output may be incomplete or inaccurate, you should run this program as super-user.

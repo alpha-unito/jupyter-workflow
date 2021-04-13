@@ -1,0 +1,21 @@
+#!/bin/bash
+SCRIPT_DIRECTORY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+# Rebuild Jupyter stack with CUDA support
+git clone https://github.com/jupyter/docker-stacks ${SCRIPT_DIRECTORY}/docker-stacks
+docker build \
+  --build-arg=ROOT_CONTAINER=nvcr.io/nvidia/cuda:11.1.1-cudnn8-runtime-ubuntu20.04 \
+  -t jupyter/base-notebook \
+  ${SCRIPT_DIRECTORY}/docker-stacks/base-notebook
+docker build \
+  -t jupyter/minimal-notebook \
+  ${SCRIPT_DIRECTORY}/minimal-notebook
+docker build \
+  -t jupyter/scipy-notebook \
+  ${SCRIPT_DIRECTORY}/scipy-notebook
+rm -rf ${SCRIPT_DIRECTORY}/docker-stacks
+
+# Build Claire-Covid notebook
+docker build \
+    -t alphaunito/claire-covid-notebook \
+    ${SCRIPT_DIRECTORY}

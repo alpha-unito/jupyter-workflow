@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#SBATCH --job-name="claire-covid"
+#SBATCH --partition=m100_usr_prod
+#SBATCH --account="account-name"
+#SBATCH --time=24:00:00
+#SBATCH -D {{ streamflow_workdir }}
+#SBATCH --cpus-per-task=8
+#SBATCH --ntasks=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --gres=gpu:1
+
+# Load modules
+module load singularity
+
+singularity exec --nv /path/to/claire-covid.sif {{ streamflow_command }}

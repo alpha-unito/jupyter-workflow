@@ -1,0 +1,114 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda-ppc64le:11.1.1-cudnn8-devel-ubuntu18.04
+Stage: build
+
+%environment
+    export LD_LIBRARY_PATH="/usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}"
+    export PATH="/opt/conda/bin:${PATH}"
+
+%post
+    # Download apt packages
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends  \
+        build-essential                         \
+        cmake                                   \
+        curl                                    \
+        ca-certificates                         \
+        gfortran                                \
+        git                                     \
+        libgomp1                                \
+        libjpeg-dev                             \
+        libnuma-dev	   	                        \
+        libopenblas-dev                         \
+        libopenmpi-dev                          \
+        libpng-dev
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+    # Download miniconda
+    curl -fsSL -v -o ~/miniconda.sh -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-ppc64le.sh
+    chmod +x ~/miniconda.sh
+    ~/miniconda.sh -b -p /opt/conda
+    rm ~/miniconda.sh
+
+    # Download conda dependencies
+    /opt/conda/bin/conda install -y python=3.8  \
+        cython==0.29.21                         \
+        grpcio==1.31.0                          \
+        kiwisolver==1.3.0                       \
+        matplotlib==3.3.2                       \
+        ninja==1.10.1                           \
+        numpy==1.19.2                           \
+        pandas==1.1.3                           \
+        pyyaml==5.3.1                           \
+        scikit-learn==0.23.2                    \
+        scipy==1.5.2                            \
+        typing==3.7.4.3
+    /opt/conda/bin/pip install --no-cache-dir   \
+        nibabel==3.2.0                          \
+        pydicom==2.1.1                          \
+        pyprg==0.1.1b7                          \
+        tensorboard==2.3.0                      \
+        typing-extensions==3.7.4.3
+
+    # Build Magma
+    curl -fsSL -v -o /opt/magma-2.5.4.tar.gz -O http://icl.utk.edu/projectsfiles/magma/downloads/magma-2.5.4.tar.gz
+    tar -xzf /opt/magma-2.5.4.tar.gz -C /opt
+    rm -f /opt/magma-2.5.4.tar.gz
+    cp /opt/magma-2.5.4/make.inc-examples/make.inc.openblas /opt/magma-2.5.4/make.inc
+    cd /opt/magma-2.5.4
+    export CUDADIR="/usr/local/cuda"
+    export GPU_TARGET="sm_35 sm_52 sm_60 sm_61 sm_70 sm_75"
+    export OPENBLASDIR="/usr/lib/powerpc64le-linux-gnu"
+    make -j $(nproc)
+    make install
+
+    # Build PyTorch
+    git clone --depth 1 --branch v1.8.1 https://github.com/pytorch/pytorch /opt/pytorch
+    cd /opt/pytorch
+    git submodule sync
+    git submodule update --init --recursive
+    curl -L \
+        --output /opt/pytorch/aten/src/ATen/cpu/vec256/vsx/vec256_complex_float_vsx.h \
+        https://raw.githubusercontent.com/pytorch/pytorch/1c64f862f6e03ce09152d45289dd37577c277aaf/aten/src/ATen/cpu/vec256/vsx/vec256_complex_float_vsx.h
+    export USE_MKLDNN=0
+    export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
+    export TORCH_CUDA_ARCH_LIST="3.5 5.2 6.0 6.1 7.0+PTX"
+    export TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
+    /opt/conda/bin/python setup.py install
+
+    # Build TorchVision
+    git clone --depth 1 --branch v0.9.1 https://github.com/pytorch/vision /opt/torchvision
+    cd /opt/torchvision
+    /opt/conda/bin/python setup.py install
+
+
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda-ppc64le:11.1.1-cudnn8-runtime-ubuntu18.04
+Stage: final
+
+%files from build
+    /opt/conda      		/opt/conda
+    /usr/local/magma/lib	/usr/local/magma/lib
+
+%environment
+    export LD_LIBRARY_PATH="/usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}"
+    export NVIDIA_DRIVER_CAPABILITIES="compute,utility"
+    export NVIDIA_VISIBLE_DEVICES="all"
+    export PATH="/opt/conda/bin:${PATH}"
+
+%post
+    # Download apt packages
+    apt-get update
+    apt-get install -y --no-install-recommends  \
+        ca-certificates                         \
+        libgomp1                                \
+        libjpeg8                                \
+	libnuma1                                    \
+        libopenblas-base                        \
+	openmpi-bin	                                \
+        libpng16-16
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+

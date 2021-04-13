@@ -1,0 +1,30 @@
+Bootstrap: localimage
+From: pytorch.sif
+Stage: github
+
+%post
+    apt-get update
+    apt-get install -y git
+    git clone https://github.com/CLAIRE-COVID/AI-Covid19-benchmarking.git /opt/claire-covid
+
+Bootstrap: localimage
+From: pytorch.sif
+Stage: final
+
+%post
+    pip install --no-cache-dir dill
+
+%files from github
+    /opt/claire-covid/interpretability/           /opt/claire-covid/interpretability/
+    /opt/claire-covid/nnframework/                /opt/claire-covid/nnframework/
+    /opt/claire-covid/metrics/                    /opt/claire-covid/metrics/
+
+%environment
+    export PYTHONPATH="${PYTHONPATH}:/opt/claire-covid"
+
+%labels
+    org.label-schema.name       "CLAIRE COVID19 DNN Benchmark"
+    org.label-schema.vcs-url    "https://github.com/CLAIRE-COVID/AI-Covid19-benchmarking"
+
+%help
+    Container for CLAIRE benchmarking of Deep Neural Network models for COVID19 diagnosis (https://github.com/CLAIRE-COVID/AI-Covid19-benchmarking)
