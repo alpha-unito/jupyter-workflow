@@ -6,5 +6,6 @@ docker run                                          \
 	--rm                                              \
 	-p 8888:8888                                      \
 	-v ${SCRIPT_DIRECTORY}/work:/home/jovyan/work     \
+	-v ${HOME}/.kube:/home/jovyan/.kube               \
 	-v ${HOME}/.ssh:/home/jovyan/.ssh                 \
-	alphaunito/quantum-espresso-notebook
+	alphaunito/tensorflow-notebook

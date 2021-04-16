@@ -1,0 +1,6 @@
+cd {{ streamflow_workdir }} && docker run   \
+    -v /tmp:/tmp                            \
+    --user root                             \
+    --gpus all                              \
+    alphaunito/tensorflow-notebook          \
+    {{ streamflow_command }}

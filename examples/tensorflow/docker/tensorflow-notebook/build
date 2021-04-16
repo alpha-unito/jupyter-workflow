@@ -15,7 +15,7 @@ docker build \
   ${SCRIPT_DIRECTORY}/docker-stacks/scipy-notebook
 rm -rf ${SCRIPT_DIRECTORY}/docker-stacks
 
-# Build Claire-Covid notebook
+# Build TensorFlow GPU notebook
 docker build \
-    -t alphaunito/claire-covid-notebook \
+    -t alphaunito/tensorflow-notebook \
     ${SCRIPT_DIRECTORY}

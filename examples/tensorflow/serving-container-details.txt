@@ -1,0 +1,96 @@
++ uname -a
+Linux tf-serving-tensorflow-serving-59495c9974-7dkr5 4.15.0-121-generic #123-Ubuntu SMP Mon Oct 5 16:16:40 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
++ lscpu
+Architecture:        x86_64
+CPU op-mode(s):      32-bit, 64-bit
+Byte Order:          Little Endian
+CPU(s):              4
+On-line CPU(s) list: 0-3
+Thread(s) per core:  1
+Core(s) per socket:  1
+Socket(s):           4
+NUMA node(s):        1
+Vendor ID:           GenuineIntel
+CPU family:          6
+Model:               85
+Model name:          Intel Xeon Processor (Skylake, IBRS)
+Stepping:            4
+CPU MHz:             2100.000
+BogoMIPS:            4200.00
+Virtualization:      VT-x
+Hypervisor vendor:   KVM
+Virtualization type: full
+L1d cache:           32K
+L1i cache:           32K
+L2 cache:            4096K
+L3 cache:            16384K
+NUMA node0 CPU(s):   0-3
+Flags:               fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault invpcid_single pti ssbd ibrs ibpb tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves arat pku ospke avx512_vnni md_clear arch_capabilities
++ cat /proc/meminfo
+MemTotal:        8167548 kB
+MemFree:         2558208 kB
+MemAvailable:    6901288 kB
+Buffers:          157288 kB
+Cached:          3961684 kB
+SwapCached:            0 kB
+Active:          2164624 kB
+Inactive:        2812980 kB
+Active(anon):     722092 kB
+Inactive(anon):      408 kB
+Active(file):    1442532 kB
+Inactive(file):  2812572 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:               148 kB
+Writeback:             0 kB
+AnonPages:        829196 kB
+Mapped:           830300 kB
+Shmem:              2420 kB
+Slab:             548440 kB
+SReclaimable:     389424 kB
+SUnreclaim:       159016 kB
+KernelStack:       14256 kB
+PageTables:        12968 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     4083772 kB
+Committed_AS:    5010460 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:           0 kB
+VmallocChunk:          0 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:     55296 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+CmaTotal:              0 kB
+CmaFree:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:      337776 kB
+DirectMap2M:     8050688 kB
+DirectMap1G:     2097152 kB
++ lsblk -a
+NAME    MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+loop0     7:0    0        1 loop
+loop1     7:1    0 99.2M  1 loop
+loop2     7:2    0 21.3M  1 loop
+loop3     7:3    0  8.9M  1 loop
+loop4     7:4    0  9.1M  1 loop
+loop5     7:5    0 55.5M  1 loop
+loop6     7:6    0 98.4M  1 loop
+loop7     7:7    0  8.9M  1 loop
+loop8     7:8    0 21.3M  1 loop
+loop9     7:9    0 55.5M  1 loop
+loop10    7:10   0  9.1M  1 loop
+loop11    7:11   0        0 loop
+vda     252:0    0   30G  0 disk
+|-vda1  252:1    0 29.9G  0 part /etc/resolv.conf
+|-vda14 252:14   0    4M  0 part
+`-vda15 252:15   0  106M  0 part
+vdb     252:16   0    8G  0 disk /models

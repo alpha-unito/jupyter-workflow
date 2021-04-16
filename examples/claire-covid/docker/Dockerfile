@@ -21,7 +21,8 @@ RUN pip install --no-cache-dir                                  \
         scikit-learn==0.23.2                                    \
         scipy==1.5.2                                            \
         tensorboard==2.3.0                                      \
-        typing==3.7.4.3
+        typing==3.7.4.3                                         \
+    && python -m jupyter_workflow.ipython.install
 
 USER root
 

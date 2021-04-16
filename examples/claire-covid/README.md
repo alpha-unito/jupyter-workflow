@@ -22,4 +22,4 @@ If you plan to run on an x86_64 architecture, creating the Singularity is as eas
 
 In order to run the Notebook locally, you can use the `run` script in this folder. It automatically pulls the related container from [DockerHub](https://hub.docker.com/r/alphaunito/claire-covid-notebook). Conversely, if you want to produce your own local version of the container, you can run the `build` script in the `docker` folder of this repo prior to launch the `run` script.
 
-Documentation related to the single Notebook cells is reported directly in the Notebook.
+Documentation related to the single Notebook cells is reported directly in the Notebook. Please be sure to select `Jupyter Workflow` as the Notebook kernel when running the example.
