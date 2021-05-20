@@ -186,8 +186,9 @@ class DependenciesRetriever(ast.NodeVisitor):
         fields = {f: v for f, v in ast.iter_fields(node)}
         # Check if is a call to `run_cell_magic`
         if isinstance(fields['func'], ast.Attribute) and fields['func'].attr == 'run_cell_magic':
-            for _, name, _, _ in DollarFormatter().parse(fields['args'][2].value):
-                self.names.add_name(name)
+            for _, name, _, _ in DollarFormatter().parse(fields['args'][1].value):
+                if name is not None:
+                    self.deps.add(name)
         # Visit other fields
         self._visit_fields(fields)
 

@@ -159,7 +159,6 @@ async def run_code(args):
                 user_ns['get_ipython']().user_ns = user_ns
             # Exec cell code
             for node, mode in ast_nodes:
-                print(ast.dump(node))
                 if mode == 'exec':
                     mod = Module([node], [])
                 elif mode == 'single':
