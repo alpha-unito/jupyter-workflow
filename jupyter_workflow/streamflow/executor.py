@@ -12,7 +12,7 @@ import sys
 import traceback
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
 from tempfile import NamedTemporaryFile
-from typing import Dict, MutableSequence, cast, IO
+from typing import Dict, MutableSequence
 
 if sys.version_info > (3, 8):
     from ast import Module
@@ -109,20 +109,6 @@ def predump(compiler, name, value, serializer):
         return value
 
 
-class Logger(object):
-    def __init__(self):
-        self.terminal = sys.stdout
-        self.buffer = io.StringIO()
-
-    def write(self, message):
-        self.terminal.write(message)
-        self.buffer.write(message)
-
-    def flush(self):
-        self.terminal.flush()
-        self.buffer.flush()
-
-
 class RemoteCompiler(codeop.Compile):
 
     def ast_parse(self, source, filename='<unknown>', symbol='exec'):
@@ -151,7 +137,7 @@ def prepare_ns(namespace: Dict) -> Dict:
 
 async def run_code(args):
     output = {CELL_LOCAL_NS: {}}
-    command_output = cast(IO, Logger())
+    command_output = io.StringIO()
     with redirect_stdout(command_output), redirect_stderr(command_output):
         try:
             # Instantiate compiler
@@ -173,6 +159,7 @@ async def run_code(args):
                 user_ns['get_ipython']().user_ns = user_ns
             # Exec cell code
             for node, mode in ast_nodes:
+                print(ast.dump(node))
                 if mode == 'exec':
                     mod = Module([node], [])
                 elif mode == 'single':

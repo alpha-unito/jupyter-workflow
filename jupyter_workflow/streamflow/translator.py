@@ -7,6 +7,7 @@ from itertools import islice
 from typing import MutableSequence, Text, Any, MutableMapping, Optional, Tuple, List, Set
 
 from IPython.core.compilerop import CachingCompiler
+from IPython.utils.text import DollarFormatter
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import ModelConfig
@@ -180,6 +181,15 @@ class DependenciesRetriever(ast.NodeVisitor):
 
     def visit_AsyncFunctionDef(self, node):
         self._visit_FunctionDef(node)
+
+    def visit_Call(self, node) -> Any:
+        fields = {f: v for f, v in ast.iter_fields(node)}
+        # Check if is a call to `run_cell_magic`
+        if isinstance(fields['func'], ast.Attribute) and fields['func'].attr == 'run_cell_magic':
+            for _, name, _, _ in DollarFormatter().parse(fields['args'][2]):
+                self.names.add_name(name)
+        # Visit other fields
+        self._visit_fields(fields)
 
     def visit_ClassDef(self, node):
         # Extract fields
