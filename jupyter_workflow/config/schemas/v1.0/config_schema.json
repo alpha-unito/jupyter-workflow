@@ -337,6 +337,12 @@
           },
           "uniqueItems": true
         },
+        "scatterMethod": {
+          "type": "string",
+          "description": "In case of multiple scatter variables, how they must be combined",
+          "enum": ["cartesian", "dotproduct"],
+          "default": "cartesian"
+        },
         "workdir": {
           "type": "string",
           "description": "Path to the working directory",

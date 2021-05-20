@@ -58,7 +58,9 @@ def _extract_dependencies(cell_name: Text,
     return list(visitor.deps)
 
 
-def _get_input_combinator(step: Step, scatter_inputs: Optional[Set[Text]] = None) -> InputCombinator:
+def _get_input_combinator(step: Step,
+                          scatter_inputs: Optional[Set[Text]] = None,
+                          scatter_method: Optional[Text] = None) -> InputCombinator:
     scatter_inputs = scatter_inputs or set()
     # If there are no scatter ports in this step, create a single DotProduct combinator
     if not [n for n in scatter_inputs]:
@@ -76,8 +78,13 @@ def _get_input_combinator(step: Step, scatter_inputs: Optional[Set[Text]] = None
             if port_name in scatter_inputs:
                 scatter_ports[port_name] = port
                 del other_ports[port_name]
-        scatter_name = utils.random_name()
-        scatter_combinator = CartesianProductInputCombinator(scatter_name)
+        # Choose the right combinator for the scatter ports, based on the `scatterMethod` property
+        if scatter_method == 'dotproduct':
+            scatter_name = utils.random_name()
+            scatter_combinator = DotProductInputCombinator(scatter_name)
+        else:
+            scatter_name = utils.random_name()
+            scatter_combinator = CartesianProductInputCombinator(scatter_name)
         scatter_combinator.ports = scatter_ports
         cartesian_combinator.ports[scatter_name] = scatter_combinator
         # Create a CartesianProduct combinator between the scatter ports and the DotProduct of the others
@@ -408,7 +415,10 @@ class JupyterNotebookTranslator(object):
                     # Register step port
                     step.output_ports[name] = output_port
         # Set input combinator for the step
-        step.input_combinator = _get_input_combinator(step=step, scatter_inputs=scatter_inputs)
+        step.input_combinator = _get_input_combinator(
+            step=step,
+            scatter_inputs=scatter_inputs,
+            scatter_method=metadata['step'].get('scatterMethod', 'cartesian'))
         # Create the command to be executed remotely
         step.command = JupyterCommand(
             step=step,
