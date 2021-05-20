@@ -7,13 +7,12 @@ import inspect
 import io
 import json
 import os
-import posixpath
 import shutil
 import sys
 import traceback
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
 from tempfile import NamedTemporaryFile
-from typing import Dict, MutableSequence
+from typing import Dict, MutableSequence, cast, IO
 
 if sys.version_info > (3, 8):
     from ast import Module
@@ -110,6 +109,20 @@ def predump(compiler, name, value, serializer):
         return value
 
 
+class Logger(object):
+    def __init__(self):
+        self.terminal = sys.stdout
+        self.buffer = io.StringIO()
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.buffer.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.buffer.flush()
+
+
 class RemoteCompiler(codeop.Compile):
 
     def ast_parse(self, source, filename='<unknown>', symbol='exec'):
@@ -138,9 +151,9 @@ def prepare_ns(namespace: Dict) -> Dict:
 
 async def run_code(args):
     output = {CELL_LOCAL_NS: {}}
-    try:
-        command_output, command_error = io.StringIO(), io.StringIO()
-        with redirect_stdout(command_output), redirect_stderr(command_error):
+    command_output = cast(IO, Logger())
+    with redirect_stdout(command_output), redirect_stderr(command_output):
+        try:
             # Instantiate compiler
             compiler = RemoteCompiler()
             # Deserialize elements
@@ -171,23 +184,27 @@ async def run_code(args):
                     await eval(code_obj, user_ns, user_ns)
                 else:
                     exec(code_obj, user_ns, user_ns)
-        # Populate output object
-        output[CELL_OUTPUT] = command_output.getvalue().strip()
-        if 'get_ipython' in locals():
-            output[CELL_OUTPUT] = user_ns['Out'][-1].append(output[CELL_OUTPUT])
-        if args.output_name:
-            output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
-            if args.workdir:
-                dest_path = os.path.join(args.workdir, os.path.basename(output[CELL_LOCAL_NS]))
-                shutil.move(output[CELL_LOCAL_NS], dest_path)
-                output[CELL_LOCAL_NS] = dest_path
-    except BaseException:
-        # Populate output object
-        output[CELL_OUTPUT] = traceback.format_exc()
-    finally:
-        # Save output json to file
-        with open(args.output_file, 'w') as f:
-            f.write(json.dumps(output))
+            # Populate output object
+            output[CELL_OUTPUT] = command_output.getvalue().strip()
+            if 'get_ipython' in locals():
+                output[CELL_OUTPUT] = user_ns['Out'][-1].append(output[CELL_OUTPUT])
+            if args.output_name:
+                output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
+                if args.workdir:
+                    dest_path = os.path.join(args.workdir, os.path.basename(output[CELL_LOCAL_NS]))
+                    shutil.move(output[CELL_LOCAL_NS], dest_path)
+                    output[CELL_LOCAL_NS] = dest_path
+        except BaseException:
+            # Populate output object
+            output[CELL_OUTPUT] = command_output.getvalue().strip()
+            if output[CELL_OUTPUT]:
+                output[CELL_OUTPUT] = output[CELL_OUTPUT] + "\n" + traceback.format_exc().strip()
+            else:
+                output[CELL_OUTPUT] = traceback.format_exc().strip()
+        finally:
+            # Save output json to file
+            with open(args.output_file, 'w') as f:
+                f.write(json.dumps(output))
 
 
 def main(args):
