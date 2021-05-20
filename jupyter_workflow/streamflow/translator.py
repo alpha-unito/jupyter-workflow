@@ -382,7 +382,10 @@ class JupyterNotebookTranslator(object):
                     # Create port
                     name = element.get('name') or element.get('valueFrom')
                     if gather:
-                        output_port = GatherOutputPort(name=name, step=step)
+                        output_port = GatherOutputPort(
+                            name=name,
+                            step=step,
+                            merge_strategy=lambda values: sorted(values, key=lambda t: t.tag))
                     else:
                         output_port = DefaultOutputPort(name=name, step=step)
                     # Get serializer if present

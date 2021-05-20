@@ -5,7 +5,7 @@ from typing import Any, Set, Text, Optional, MutableMapping, MutableSequence
 
 import dill
 from IPython.core.compilerop import CachingCompiler
-from streamflow.core.utils import get_path_processor
+from streamflow.core import utils
 from streamflow.core.workflow import Job, Token, Port
 from streamflow.data import remotepath
 from streamflow.workflow.port import DefaultTokenProcessor
@@ -17,7 +17,11 @@ from jupyter_workflow.streamflow.command import JupyterCommandOutput
 class ControlTokenProcessor(DefaultTokenProcessor):
 
     async def compute_token(self, job: Job, command_output: JupyterCommandOutput) -> Token:
-        return Token(name=self.port.name, value=None, job=job.name)
+        return Token(
+            name=self.port.name,
+            value=None,
+            tag=utils.get_tag(job.inputs),
+            job=job.name)
 
 
 class FileTokenProcessor(DefaultTokenProcessor):
@@ -41,7 +45,7 @@ class FileTokenProcessor(DefaultTokenProcessor):
             ) for t in token.value])
             return token.update([t.value for t in token_list])
         context = self.port.step.context
-        path_processor = get_path_processor(self.port.step)
+        path_processor = utils.get_path_processor(self.port.step)
         src_path = token.value
         src_job = context.scheduler.get_job(token.job)
         dest_path = os.path.join(output_dir, path_processor.basename(src_path))
@@ -56,24 +60,45 @@ class FileTokenProcessor(DefaultTokenProcessor):
         return token.update(dest_path)
 
     async def compute_token(self, job: Job, command_output: JupyterCommandOutput) -> Token:
-        token_value = (self.value if self.value is not None else
-                       command_output.user_ns.get(self.value_from))
-        path_processor = get_path_processor(self.port.step)
-        if not path_processor.isabs(token_value) and job.output_directory:
-            token_value = path_processor.join(job.output_directory, token_value)
-        return Token(name=self.port.name, value=token_value, job=job.name)
+        path_processor = utils.get_path_processor(self.port.step)
+        if self.value is not None:
+            connector = job.step.get_connector() if job is not None else None
+            resources = job.get_resources() or [None]
+            if job.output_directory and not path_processor.isabs(self.value):
+                pattern = path_processor.join(job.output_directory, self.value)
+            else:
+                pattern = self.value
+            token_value = utils.flatten_list(await asyncio.gather(*[asyncio.create_task(
+                remotepath.resolve(
+                    connector=connector,
+                    target=resource,
+                    pattern=pattern
+                )) for resource in resources]))
+            if len(token_value) == 1:
+                token_value = token_value[0]
+        else:
+            token_value = command_output.user_ns.get(self.value_from)
+        if job.output_directory:
+            if isinstance(token_value, MutableSequence):
+                token_value = [path_processor.join(job.output_directory, t) if not path_processor.isabs(t) else t
+                               for t in token_value]
+            else:
+                if not path_processor.isabs(token_value):
+                    token_value = path_processor.join(job.output_directory, token_value)
+        return Token(
+            name=self.port.name,
+            value=token_value,
+            job=job.name,
+            tag=utils.get_tag(job.inputs))
 
     async def _register_data(self, job: Job, path: Text):
         connector = job.step.get_connector()
         resources = job.get_resources() or [None]
-        if resources:
-            register_path_tasks = []
-            for resource in resources:
-                register_path_tasks.append(asyncio.create_task(
-                    self.port.step.context.data_manager.register_path(connector, resource, path)))
-            await asyncio.gather(*register_path_tasks)
-        else:
-            await self.port.step.context.data_manager.register_path(connector, None, path)
+        register_path_tasks = []
+        for resource in resources:
+            register_path_tasks.append(asyncio.create_task(
+                self.port.step.context.data_manager.register_path(connector, resource, path)))
+        await asyncio.gather(*register_path_tasks)
 
     def get_related_resources(self, token: Token) -> Set[Text]:
         if isinstance(token.job, MutableSequence) or isinstance(token.value, MutableSequence):
@@ -100,7 +125,7 @@ class FileTokenProcessor(DefaultTokenProcessor):
                 self.update_token(job, token.update(t))
             ) for t in token.value])
             return token.update([t.value for t in token_list])
-        path_processor = get_path_processor(self.port.step)
+        path_processor = utils.get_path_processor(self.port.step)
         dest_path = path_processor.join(job.input_directory, os.path.basename(token.value))
         await self.port.step.context.data_manager.transfer_data(
             src=token.value,
@@ -157,4 +182,8 @@ class NameTokenProcessor(DefaultTokenProcessor):
             serializer=self.serializer)
         token_value = ([dill.dumps(v, recurse=True) for v in value] if isinstance(value, MutableSequence) else
                        dill.dumps(value, recurse=True))
-        return Token(name=self.port.name, value=token_value, job=job.name)
+        return Token(
+            name=self.port.name,
+            value=token_value,
+            job=job.name,
+            tag=utils.get_tag(job.inputs))
