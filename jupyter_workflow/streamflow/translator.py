@@ -2,6 +2,7 @@ import ast
 import asyncio
 import hashlib
 import json
+import posixpath
 from collections import OrderedDict
 from itertools import islice
 from typing import MutableSequence, Text, Any, MutableMapping, Optional, Tuple, List, Set
@@ -385,7 +386,7 @@ class JupyterNotebookTranslator(object):
                         output_port = GatherOutputPort(
                             name=name,
                             step=step,
-                            merge_strategy=lambda values: sorted(values, key=lambda t: t.tag))
+                            merge_strategy=lambda values: sorted(values, key=lambda t: int(posixpath.basename(t.tag))))
                     else:
                         output_port = DefaultOutputPort(name=name, step=step)
                     # Get serializer if present

@@ -248,8 +248,6 @@ class JupyterCommand(Command):
                 stdout.close()
             if stderr is not None:
                 stderr.close()
-        # Infer status
-        status = Status.COMPLETED if exit_code == 0 else Status.FAILED
         # Retrieve outputs
         with TemporaryDirectory() as d:
             dest_path = os.path.join(d, path_processor.basename(output_path))
@@ -260,6 +258,8 @@ class JupyterCommand(Command):
                 dst_job=None)
             with open(dest_path, mode='r') as f:
                 json_output = json.load(f)
+        # Infer status
+        status = Status[json_output[executor.CELL_STATUS]]
         if status == Status.COMPLETED:
             command_stdout = json_output[executor.CELL_OUTPUT]
             if isinstance(command_stdout, MutableSequence):  # TODO: understand why we obtain a list here

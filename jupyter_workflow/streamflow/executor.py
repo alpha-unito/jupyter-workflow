@@ -24,6 +24,7 @@ else:
         return OriginalModule(nodelist)
 
 CELL_OUTPUT = '__JF_CELL_OUTPUT__'
+CELL_STATUS = '__JF_CELL_STATUS__'
 CELL_LOCAL_NS = '__JF_CELL_LOCAL_NS__'
 
 # Import dill or install it
@@ -180,6 +181,7 @@ async def run_code(args):
                     dest_path = os.path.join(args.workdir, os.path.basename(output[CELL_LOCAL_NS]))
                     shutil.move(output[CELL_LOCAL_NS], dest_path)
                     output[CELL_LOCAL_NS] = dest_path
+            output[CELL_STATUS] = 'COMPLETED'
         except BaseException:
             # Populate output object
             output[CELL_OUTPUT] = command_output.getvalue().strip()
@@ -187,6 +189,7 @@ async def run_code(args):
                 output[CELL_OUTPUT] = output[CELL_OUTPUT] + "\n" + traceback.format_exc().strip()
             else:
                 output[CELL_OUTPUT] = traceback.format_exc().strip()
+            output[CELL_STATUS] = 'FAILED'
         finally:
             # Save output json to file
             with open(args.output_file, 'w') as f:

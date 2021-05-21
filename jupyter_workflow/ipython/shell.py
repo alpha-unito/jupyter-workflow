@@ -79,20 +79,20 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         # Execute the step
         await step.run()
         # Retrieve output
-        output_retriever = utils.random_name()
-        output_names = {}
-        d = tempfile.mkdtemp()
-        for port_name, port in step.output_ports.items():
-            token_processor = step.output_ports[port_name].token_processor
-            token = await step.output_ports[port_name].get(output_retriever)
-            token = await token_processor.collect_output(token, d)
-            if isinstance(token.job, MutableSequence):
-                output_names[token.name] = utils.flatten_list([t.value for t in token.value])
-            else:
-                output_names[token.name] = token.value
-
-        # Update namespaces
-        self.user_ns.update(output_names)
+        if step.status == Status.COMPLETED:
+            output_retriever = utils.random_name()
+            output_names = {}
+            d = tempfile.mkdtemp()
+            for port_name, port in step.output_ports.items():
+                token_processor = step.output_ports[port_name].token_processor
+                token = await step.output_ports[port_name].get(output_retriever)
+                token = await token_processor.collect_output(token, d)
+                if isinstance(token.job, MutableSequence):
+                    output_names[token.name] = utils.flatten_list([t.value for t in token.value])
+                else:
+                    output_names[token.name] = token.value
+            # Update namespaces
+            self.user_ns.update(output_names)
 
     @observe('exit_now')
     def _update_exit_now(self, change):
