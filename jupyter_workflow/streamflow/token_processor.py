@@ -126,9 +126,10 @@ class FileTokenProcessor(DefaultTokenProcessor):
             ) for t in token.value])
             return token.update([t.value for t in token_list])
         path_processor = utils.get_path_processor(self.port.step)
-        dest_path = path_processor.join(job.input_directory, os.path.basename(token.value))
+        token_value = dill.loads(token.value) if isinstance(token.value, bytes) else token.value
+        dest_path = path_processor.join(job.input_directory, os.path.basename(token_value))
         await self.port.step.context.data_manager.transfer_data(
-            src=token.value,
+            src=token_value,
             src_job=None,
             dst=dest_path,
             dst_job=job)

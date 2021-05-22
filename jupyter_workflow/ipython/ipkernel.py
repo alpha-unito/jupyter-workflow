@@ -1,9 +1,13 @@
+import asyncio
 import sys
+import time
 
 import streamflow
 import traitlets
 from ipykernel.ipkernel import IPythonKernel
-from ipython_genutils.py3compat import PY3
+from ipykernel.jsonutil import json_clean
+from ipython_genutils.py3compat import PY3, safe_unicode
+from tornado import gen
 
 from jupyter_workflow.config.validator import validate
 from jupyter_workflow.ipython.shell import StreamFlowInteractiveShell
@@ -27,6 +31,8 @@ class WorkflowIPythonKernel(IPythonKernel):
         'nbconvert_exporter': 'python',
         'file_extension': '.py'
     }
+
+    msg_types = IPythonKernel.msg_types + ['workflow_request']
 
     def init_metadata(self, parent):
         # Call parent functionse
@@ -54,4 +60,56 @@ class WorkflowIPythonKernel(IPythonKernel):
             self.shell.wf_cell_config.reset(metadata['sf_token'])
             del metadata['sf_token']
         # Call parent function
-        super().finish_metadata(parent, metadata, reply_content)
+        return super().finish_metadata(parent, metadata, reply_content)
+
+    @gen.coroutine
+    def workflow_request(self, stream, ident, parent):
+        try:
+            content = parent['content']
+            notebook = content['notebook']
+        except:
+            self.log.error("Got bad msg: ")
+            self.log.error("%s", parent)
+            return
+        metadata = self.init_metadata(parent)
+        reply_content = yield gen.maybe_future(self.do_workflow(notebook))
+        sys.stdout.flush()
+        sys.stderr.flush()
+        if self._execute_sleep:
+            time.sleep(self._execute_sleep)
+        # Send the reply.
+        reply_content = json_clean(reply_content)
+        metadata = self.finish_metadata(parent, metadata, reply_content)
+        reply_msg = self.session.send(stream, 'workflow_reply',
+                                      reply_content, parent, metadata=metadata,
+                                      ident=ident)
+        self.log.debug("%s", reply_msg)
+
+    def do_workflow(self, notebook):
+        shell = self.shell
+        reply_content = {}
+        coro = shell.run_workflow(notebook)
+        coro_future = asyncio.ensure_future(coro)
+        with self._cancel_on_sigint(coro_future):
+            try:
+                res = yield coro_future
+            finally:
+                shell.events.trigger('post_execute')
+        if res.error_before_exec is not None:
+            err = res.error_before_exec
+        else:
+            err = res.error_in_exec
+        if res.success:
+            reply_content['status'] = 'ok'
+        else:
+            reply_content['status'] = 'error'
+            # noinspection PyProtectedMember
+            reply_content.update({
+                'traceback': shell._last_traceback or [],
+                'ename': str(type(err).__name__),
+                'evalue': safe_unicode(err),
+            })
+        reply_content['execution_count'] = shell.execution_count - 1,
+        reply_content['payload'] = shell.payload_manager.read_payload()
+        shell.payload_manager.clear_payload()
+        return reply_content

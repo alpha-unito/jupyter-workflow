@@ -1,10 +1,7 @@
 import ast
-import asyncio
 import hashlib
 import json
 import posixpath
-from collections import OrderedDict
-from itertools import islice
 from typing import MutableSequence, Text, Any, MutableMapping, Optional, Tuple, List, Set
 
 from IPython.core.compilerop import CachingCompiler
@@ -13,27 +10,25 @@ from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import ModelConfig
 from streamflow.core.workflow import Workflow, Target, Step, InputCombinator
-from streamflow.workflow.combinator import DotProductInputCombinator, CartesianProductInputCombinator
+from streamflow.workflow.combinator import DotProductInputCombinator
 from streamflow.workflow.port import DefaultOutputPort, DefaultInputPort, ScatterInputPort, GatherOutputPort
 from streamflow.workflow.step import BaseStep
 
+from jupyter_workflow.streamflow.combinator import JupyterCartesianProductInputCombinator
 from jupyter_workflow.streamflow.command import JupyterCommand, JupyterCommandToken
 from jupyter_workflow.streamflow.token_processor import FileTokenProcessor, NameTokenProcessor, ControlTokenProcessor
 
 
-def _build_dependencies(workflow: Workflow) -> None:
-    input_deps = {step_name: list(step.input_ports.keys()) for step_name, step in workflow.steps.items()}
-    return_values = {step_name: list(step.output_ports.keys()) for step_name, step in workflow.steps.items()}
-
-    for i, (in_step, in_names) in enumerate(input_deps.values()):
-        available_names = {k: return_values[k] for k in reversed(list(islice(return_values, i)))}
-        for in_name in in_names:
-            for out_step, out_names in available_names.items():
-                if in_name in out_names:
-                    input_port = workflow.steps[in_step].input_ports[in_name]
-                    output_port = workflow.steps[out_step].output_ports[in_name]
-                    input_port.dependee = output_port
-                    break
+def _build_dependencies(workflow: Workflow, in_step: Step) -> None:
+    in_names = list(in_step.input_ports.keys())
+    return_values = {s_name: list(s.output_ports.keys()) for s_name, s in reversed(list(workflow.steps.items()))}
+    for in_name in in_names:
+        for out_step, out_names in return_values.items():
+            if in_name in out_names:
+                input_port = in_step.input_ports[in_name]
+                output_port = workflow.steps[out_step].output_ports[in_name]
+                input_port.dependee = output_port
+                break
 
 
 def _build_target(model_name: Text, step_target: MutableMapping[Text, Any]) -> Target:
@@ -65,14 +60,14 @@ def _get_input_combinator(step: Step,
     scatter_inputs = scatter_inputs or set()
     # If there are no scatter ports in this step, create a single DotProduct combinator
     if not [n for n in scatter_inputs]:
-        input_combinator = DotProductInputCombinator(utils.random_name())
+        input_combinator = DotProductInputCombinator(name=utils.random_name(), step=step)
         for port in step.input_ports.values():
             input_combinator.ports[port.name] = port
         return input_combinator
     # If there are scatter ports
     else:
         other_ports = dict(step.input_ports)
-        cartesian_combinator = CartesianProductInputCombinator(utils.random_name())
+        cartesian_combinator = JupyterCartesianProductInputCombinator(name=utils.random_name(), step=step)
         # Separate scatter ports from the other ones
         scatter_ports = {}
         for port_name, port in step.input_ports.items():
@@ -82,16 +77,16 @@ def _get_input_combinator(step: Step,
         # Choose the right combinator for the scatter ports, based on the `scatterMethod` property
         if scatter_method == 'dotproduct':
             scatter_name = utils.random_name()
-            scatter_combinator = DotProductInputCombinator(scatter_name)
+            scatter_combinator = DotProductInputCombinator(name=scatter_name, step=step)
         else:
             scatter_name = utils.random_name()
-            scatter_combinator = CartesianProductInputCombinator(scatter_name)
+            scatter_combinator = JupyterCartesianProductInputCombinator(name=scatter_name, step=step)
         scatter_combinator.ports = scatter_ports
         cartesian_combinator.ports[scatter_name] = scatter_combinator
         # Create a CartesianProduct combinator between the scatter ports and the DotProduct of the others
         if other_ports:
             dotproduct_name = utils.random_name()
-            dotproduct_combinator = DotProductInputCombinator(dotproduct_name)
+            dotproduct_combinator = DotProductInputCombinator(name=dotproduct_name, step=step)
             dotproduct_combinator.ports = other_ports
             cartesian_combinator.ports[dotproduct_name] = dotproduct_combinator
         return cartesian_combinator
@@ -438,15 +433,13 @@ class JupyterNotebookTranslator(object):
         # Create workflow
         workflow = Workflow()
         # Parse single cells independently to derive workflow steps
-        cell_tasks = {cell.name: asyncio.create_task(
-            self.translate_cell(
+        for cell in notebook.cells:
+            step = await self.translate_cell(
                 cell=cell,
                 metadata={**cell.metadata, **notebook.metadata},
                 autoawait=notebook.autoawait)
-        ) for cell in notebook.cells}
-        workflow.steps = OrderedDict(zip(cell_tasks.keys(), await asyncio.gather(*cell_tasks.values())))
-        # Build dependency graph
-        _build_dependencies(workflow)
+            _build_dependencies(workflow, step)
+            workflow.steps[step.name] = step
         # Extract workflow outputs
         last_step = workflow.steps[notebook.cells[-1].name]
         for port_name, port in last_step.output_ports.items():

@@ -7,10 +7,12 @@ from contextvars import ContextVar
 from typing import MutableMapping, Any, List, Tuple, MutableSequence
 
 import IPython
-from IPython.core.interactiveshell import softspace
+from IPython.core.error import InputRejected
+from IPython.core.interactiveshell import softspace, ExecutionResult
 from ipykernel.zmqshell import ZMQInteractiveShell
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
+from streamflow.core.exception import WorkflowDefinitionException
 from streamflow.core.workflow import Step, Job, Status, TerminationToken
 from streamflow.data.data_manager import DefaultDataManager
 from streamflow.deployment.deployment_manager import DefaultDeploymentManager
@@ -18,13 +20,14 @@ from streamflow.recovery.checkpoint_manager import DummyCheckpointManager
 from streamflow.recovery.failure_manager import DummyFailureManager
 from streamflow.scheduling.policy import DataLocalityPolicy
 from streamflow.scheduling.scheduler import DefaultScheduler
+from streamflow.workflow.executor import StreamFlowExecutor
 from streamflow.workflow.port import DefaultOutputPort
 from streamflow.workflow.step import BaseStep, BaseJob
 from traitlets import observe
 from typing_extensions import Text
 
 from jupyter_workflow.streamflow.command import JupyterCommandOutput
-from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator
+from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator, JupyterNotebook
 
 
 class StreamFlowInteractiveShell(ZMQInteractiveShell):
@@ -172,6 +175,69 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             return False
         else:
             return await super().run_ast_nodes(nodelist, cell_name, interactivity, compiler, result=None)
+
+    async def run_workflow(self, notebook):
+        result = ExecutionResult(None)
+
+        def error_before_exec(val):
+            result.error_before_exec = val
+            self.last_execution_succeeded = False
+            self.last_execution_result = result
+            return result
+
+        cells = [self.transform_cell(cell['code']) for cell in notebook['cells']]
+        with self.builtin_trap:
+            try:
+                # Extract cells code
+                jupyter_cells = []
+                for cell, metadata in zip(cells, [c.get('metadata', {'step': {}}) for c in notebook['cells']]):
+                    cell_name = self.compile.cache(cell, self.execution_count, raw_code=cell)
+                    code_ast = self.compile.ast_parse(cell, filename=cell_name)
+                    code_ast = self.transform_ast(code_ast)
+                    to_run = [(node, 'exec') for node in code_ast.body]
+                    jupyter_cells.append(JupyterCell(
+                        name=cell_name,
+                        code=to_run,
+                        compiler=self.compile,
+                        metadata=metadata))
+                # Build workflow
+                translator = JupyterNotebookTranslator(context=self.context)
+                workflow = await translator.translate(JupyterNotebook(
+                    cells=jupyter_cells,
+                    autoawait=self.autoawait,
+                    metadata=notebook.get('medatata')))
+                # Inject inputs
+                input_injector = BaseJob(
+                    name=utils.random_name(),
+                    step=BaseStep(utils.random_name(), self.context),
+                    inputs=[])
+                for step in workflow.steps.values():
+                    await self._inject_inputs(step=step, job=input_injector)
+            except self.custom_exceptions as e:
+                etype, value, tb = sys.exc_info()
+                self.CustomTB(etype, value, tb)
+                return error_before_exec(e)
+            except (InputRejected, WorkflowDefinitionException) as e:
+                self.showtraceback()
+                return error_before_exec(e)
+            except IndentationError as e:
+                self.showindentationerror()
+                return error_before_exec(e)
+            except (OverflowError, SyntaxError, ValueError, TypeError,
+                    MemoryError) as e:
+                self.showsyntaxerror()
+                return error_before_exec(e)
+            self.displayhook.exec_result = result
+            # Execute workflow
+            executor = StreamFlowExecutor(context=self.context, workflow=workflow)
+            d = tempfile.mkdtemp()
+            try:
+                await executor.run(output_dir=d)
+            except:
+                if result:
+                    result.error_before_exec = sys.exc_info()[1]
+                self.showtraceback()
+        return result
 
     def should_run_async(self,
                          raw_cell: Text,
