@@ -9,11 +9,12 @@ from IPython.utils.text import DollarFormatter
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import ModelConfig
-from streamflow.core.workflow import Workflow, Target, Step, InputCombinator
+from streamflow.core.workflow import Workflow, Target, Step, InputCombinator, InputPort
 from streamflow.workflow.combinator import DotProductInputCombinator
 from streamflow.workflow.port import DefaultOutputPort, DefaultInputPort, ScatterInputPort, GatherOutputPort
 from streamflow.workflow.step import BaseStep
 
+from jupyter_workflow.streamflow import executor
 from jupyter_workflow.streamflow.combinator import JupyterCartesianProductInputCombinator
 from jupyter_workflow.streamflow.command import JupyterCommand, JupyterCommandToken
 from jupyter_workflow.streamflow.token_processor import FileTokenProcessor, NameTokenProcessor, ControlTokenProcessor
@@ -54,9 +55,30 @@ def _extract_dependencies(cell_name: Text,
     return list(visitor.deps)
 
 
+def _get_combinator_from_schema(step: Step,
+                                scatter_ports: MutableMapping[Text, InputPort],
+                                scatter_schema: Optional[MutableMapping[Text, Any]] = None) -> InputCombinator:
+    scatter_method = scatter_schema.get('method', 'cartesian')
+    combinator_name = utils.random_name()
+    if scatter_method == 'cartesian':
+        combinator = JupyterCartesianProductInputCombinator(name=combinator_name, step=step)
+    else:
+        combinator = DotProductInputCombinator(name=combinator_name, step=step)
+    for entry in scatter_schema['items'] or {}:
+        if isinstance(entry, str):
+            combinator.ports[entry] = scatter_ports[entry]
+        else:
+            inner_combinator = _get_combinator_from_schema(
+                step=step,
+                scatter_ports=scatter_ports,
+                scatter_schema=entry)
+            combinator.ports[inner_combinator.name] = inner_combinator
+    return combinator
+
+
 def _get_input_combinator(step: Step,
                           scatter_inputs: Optional[Set[Text]] = None,
-                          scatter_method: Optional[Text] = None) -> InputCombinator:
+                          scatter_schema: Optional[Any] = None) -> InputCombinator:
     scatter_inputs = scatter_inputs or set()
     # If there are no scatter ports in this step, create a single DotProduct combinator
     if not [n for n in scatter_inputs]:
@@ -74,15 +96,12 @@ def _get_input_combinator(step: Step,
             if port_name in scatter_inputs:
                 scatter_ports[port_name] = port
                 del other_ports[port_name]
-        # Choose the right combinator for the scatter ports, based on the `scatterMethod` property
-        if scatter_method == 'dotproduct':
-            scatter_name = utils.random_name()
-            scatter_combinator = DotProductInputCombinator(name=scatter_name, step=step)
-        else:
-            scatter_name = utils.random_name()
-            scatter_combinator = JupyterCartesianProductInputCombinator(name=scatter_name, step=step)
-        scatter_combinator.ports = scatter_ports
-        cartesian_combinator.ports[scatter_name] = scatter_combinator
+        # Choose the right combinator for the scatter ports, based on the scatter method property
+        scatter_combinator = _get_combinator_from_schema(
+            step=step,
+            scatter_ports=scatter_ports,
+            scatter_schema=scatter_schema)
+        cartesian_combinator.ports[scatter_combinator.name] = scatter_combinator
         # Create a CartesianProduct combinator between the scatter ports and the DotProduct of the others
         if other_ports:
             dotproduct_name = utils.random_name()
@@ -90,6 +109,16 @@ def _get_input_combinator(step: Step,
             dotproduct_combinator.ports = other_ports
             cartesian_combinator.ports[dotproduct_name] = dotproduct_combinator
         return cartesian_combinator
+
+
+def _get_scatter_inputs(scatter_schema: Optional[MutableMapping[Text, Any]]) -> Set:
+    scatter_inputs = set()
+    for entry in scatter_schema['items'] or {}:
+        if isinstance(entry, str):
+            scatter_inputs.add(entry)
+        else:
+            scatter_inputs.update(_get_scatter_inputs(entry))
+    return scatter_inputs
 
 
 class NamesStack(object):
@@ -302,8 +331,7 @@ class JupyterNotebookTranslator(object):
         # Process cell inputs
         cell_inputs = metadata['step'].get('in', [])
         input_tokens = {}
-        scatter_inputs = set()
-        gather = False
+        scatter_inputs = _get_scatter_inputs(metadata['step'].get('scatterSchema'))
         for element in cell_inputs:
             # If is a string, it refers to the name of a variable
             if isinstance(element, Text):
@@ -315,10 +343,8 @@ class JupyterNotebookTranslator(object):
             if isinstance(element, MutableMapping):
                 # Create input port
                 name = element.get('name') or element.get('valueFrom')
-                if 'scatter' in element:
+                if name in scatter_inputs:
                     port = ScatterInputPort(name=name, step=step)
-                    scatter_inputs.add(name)
-                    gather = True
                 else:
                     port = DefaultInputPort(name=name, step=step)
                 # Get serializer if present
@@ -377,7 +403,7 @@ class JupyterNotebookTranslator(object):
                 if isinstance(element, MutableMapping):
                     # Create port
                     name = element.get('name') or element.get('valueFrom')
-                    if gather:
+                    if scatter_inputs:
                         output_port = GatherOutputPort(
                             name=name,
                             step=step,
@@ -413,11 +439,15 @@ class JupyterNotebookTranslator(object):
                         serializer=serializer)
                     # Register step port
                     step.output_ports[name] = output_port
+        # Add output log port
+        output_log_port = DefaultOutputPort(name=executor.CELL_OUTPUT, step=step)
+        output_log_port.token_processor = ControlTokenProcessor(port=output_log_port)
+        step.output_ports[executor.CELL_OUTPUT] = output_log_port
         # Set input combinator for the step
         step.input_combinator = _get_input_combinator(
             step=step,
             scatter_inputs=scatter_inputs,
-            scatter_method=metadata['step'].get('scatterMethod', 'cartesian'))
+            scatter_schema=metadata['step'].get('scatterSchema'))
         # Create the command to be executed remotely
         step.command = JupyterCommand(
             step=step,

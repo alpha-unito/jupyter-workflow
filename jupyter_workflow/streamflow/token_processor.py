@@ -188,3 +188,13 @@ class NameTokenProcessor(DefaultTokenProcessor):
             value=token_value,
             job=job.name,
             tag=utils.get_tag(job.inputs))
+
+
+class OutputLogTokenProcessor(DefaultTokenProcessor):
+
+    async def compute_token(self, job: Job, command_output: JupyterCommandOutput) -> Token:
+        return Token(
+            name=self.port.name,
+            value=command_output.value,
+            job=job.name,
+            tag=utils.get_tag(job.inputs))

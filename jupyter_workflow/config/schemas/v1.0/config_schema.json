@@ -208,6 +208,35 @@
         "config"
       ]
     },
+    "scatterSchema": {
+      "$id": "#/definitions/scatterSchema",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "$ref": "#/definitions/scatterSchema"
+              }
+            ]
+          }
+        },
+        "method": {
+          "type": "string",
+          "description": "In case of multiple scatter variables, how they must be combined",
+          "enum": [
+            "cartesian",
+            "dotproduct"
+          ],
+          "default": "cartesian"
+        }
+      }
+    },
     "serializer": {
       "$id": "#/definitions/serializer",
       "type": "object",
@@ -244,15 +273,6 @@
                 "properties": {
                   "name": {
                     "type": "string"
-                  },
-                  "scatter": {
-                    "type": "object",
-                    "properties": {
-                      "size": {
-                        "type": "integer",
-                        "default": "The number of elements in the list"
-                      }
-                    }
                   },
                   "serializer": {
                     "oneOf": [
@@ -300,9 +320,6 @@
               {
                 "type": "object",
                 "properties": {
-                  "gather": {
-                    "strategy": "string"
-                  },
                   "name": {
                     "type": "string"
                   },
@@ -337,11 +354,9 @@
           },
           "uniqueItems": true
         },
-        "scatterMethod": {
-          "type": "string",
-          "description": "In case of multiple scatter variables, how they must be combined",
-          "enum": ["cartesian", "dotproduct"],
-          "default": "cartesian"
+        "scatterSchema": {
+          "type": "object",
+          "$ref": "#/definitions/scatterSchema"
         },
         "workdir": {
           "type": "string",

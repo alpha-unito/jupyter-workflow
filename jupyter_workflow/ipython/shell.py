@@ -26,6 +26,7 @@ from streamflow.workflow.step import BaseStep, BaseJob
 from traitlets import observe
 from typing_extensions import Text
 
+from jupyter_workflow.streamflow import executor
 from jupyter_workflow.streamflow.command import JupyterCommandOutput
 from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator, JupyterNotebook
 
@@ -81,19 +82,26 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         await self._inject_inputs(step=step, job=input_injector)
         # Execute the step
         await step.run()
-        # Retrieve output
+        # Print output log
+        output_retriever = utils.random_name()
+        d = tempfile.mkdtemp()
+        token_processor = step.output_ports[executor.CELL_OUTPUT].token_processor
+        token = await step.output_ports[executor.CELL_OUTPUT].get(output_retriever)
+        token = await token_processor.collect_output(token, d)
+        if token.value:
+            print(token.value)
+        # Retrieve output tokens
         if step.status == Status.COMPLETED:
-            output_retriever = utils.random_name()
             output_names = {}
-            d = tempfile.mkdtemp()
             for port_name, port in step.output_ports.items():
-                token_processor = step.output_ports[port_name].token_processor
-                token = await step.output_ports[port_name].get(output_retriever)
-                token = await token_processor.collect_output(token, d)
-                if isinstance(token.job, MutableSequence):
-                    output_names[token.name] = utils.flatten_list([t.value for t in token.value])
-                else:
-                    output_names[token.name] = token.value
+                if port_name != executor.CELL_OUTPUT:
+                    token_processor = step.output_ports[port_name].token_processor
+                    token = await step.output_ports[port_name].get(output_retriever)
+                    token = await token_processor.collect_output(token, d)
+                    if isinstance(token.job, MutableSequence):
+                        output_names[token.name] = utils.flatten_list([t.value for t in token.value])
+                    else:
+                        output_names[token.name] = token.value
             # Update namespaces
             self.user_ns.update(output_names)
 
@@ -229,10 +237,18 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 return error_before_exec(e)
             self.displayhook.exec_result = result
             # Execute workflow
-            executor = StreamFlowExecutor(context=self.context, workflow=workflow)
             d = tempfile.mkdtemp()
             try:
-                await executor.run(output_dir=d)
+                await StreamFlowExecutor(context=self.context, workflow=workflow).run(output_dir=d)
+                # Print output logs
+                output_retriever = utils.random_name()
+                d = tempfile.mkdtemp()
+                for step in workflow.steps.values():
+                    token_processor = step.output_ports[executor.CELL_OUTPUT].token_processor
+                    token = await step.output_ports[executor.CELL_OUTPUT].get(output_retriever)
+                    token = await token_processor.collect_output(token, d)
+                    if token.value:
+                        print(token.value)
             except:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]

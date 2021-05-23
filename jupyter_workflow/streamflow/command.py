@@ -271,9 +271,6 @@ class JupyterCommand(Command):
         else:
             command_stdout = json_output[executor.CELL_OUTPUT]
             user_ns = {}
-        # Print the command stdout
-        if command_stdout:
-            print(command_stdout)
         # Return the command output object
         return JupyterCommandOutput(
             value=command_stdout,
