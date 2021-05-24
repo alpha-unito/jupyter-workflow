@@ -129,7 +129,8 @@ class WorkflowIPythonKernel(IPythonKernel):
                 'ename': str(type(err).__name__),
                 'evalue': safe_unicode(err),
             })
-        reply_content['execution_count'] = shell.execution_count - 1,
+        # Fix execution count to 0 for each cell
+        reply_content['execution_count'] = 0,
         reply_content['payload'] = shell.payload_manager.read_payload()
         shell.payload_manager.clear_payload()
         return reply_content
