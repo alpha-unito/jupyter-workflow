@@ -56,24 +56,24 @@ def _extract_dependencies(cell_name: Text,
     return list(visitor.deps)
 
 
-def _get_combinator_from_schema(step: Step,
+def _get_combinator_from_scatter(step: Step,
                                 scatter_ports: MutableMapping[Text, InputPort],
-                                scatter_schema: Optional[MutableMapping[Text, Any]] = None) -> InputCombinator:
-    scatter_method = scatter_schema.get('method', 'cartesian')
+                                scatter: Optional[MutableMapping[Text, Any]] = None) -> InputCombinator:
+    scatter_method = scatter.get('method', 'cartesian')
     combinator_name = utils.random_name()
     if scatter_method == 'cartesian':
         combinator = JupyterCartesianProductInputCombinator(name=combinator_name, step=step)
     else:
         combinator = DotProductInputCombinator(name=combinator_name, step=step)
-    if scatter_schema:
-        for entry in scatter_schema.get('items') or []:
+    if scatter:
+        for entry in scatter.get('items') or []:
             if isinstance(entry, str):
                 combinator.ports[entry] = scatter_ports[entry]
             else:
-                inner_combinator = _get_combinator_from_schema(
+                inner_combinator = _get_combinator_from_scatter(
                     step=step,
                     scatter_ports=scatter_ports,
-                    scatter_schema=entry)
+                    scatter=entry)
                 combinator.ports[inner_combinator.name] = inner_combinator
     return combinator
 
@@ -98,10 +98,10 @@ def _get_input_combinator(step: Step,
                 scatter_ports[port_name] = port
                 del other_ports[port_name]
         # Choose the right combinator for the scatter ports, based on the scatter method property
-        scatter_combinator = _get_combinator_from_schema(
+        scatter_combinator = _get_combinator_from_scatter(
             step=step,
             scatter_ports=scatter_ports,
-            scatter_schema=scatter_schema)
+            scatter=scatter)
         cartesian_combinator.ports[scatter_combinator.name] = scatter_combinator
         # Create a CartesianProduct combinator between the scatter ports and the DotProduct of the others
         if other_ports:
