@@ -12,6 +12,12 @@ from tornado import gen
 from jupyter_workflow.config.validator import validate
 from jupyter_workflow.ipython.shell import StreamFlowInteractiveShell
 
+try:
+    # noinspection PyProtectedMember
+    from IPython.core.interactiveshell import _asyncio_runner
+except ImportError:
+    _asyncio_runner = None
+
 
 class WorkflowIPythonKernel(IPythonKernel):
     # Set StreamFlow shell
@@ -85,16 +91,30 @@ class WorkflowIPythonKernel(IPythonKernel):
                                       ident=ident)
         self.log.debug("%s", reply_msg)
 
+    @gen.coroutine
     def do_workflow(self, notebook):
         shell = self.shell
         reply_content = {}
-        coro = shell.run_workflow(notebook)
-        coro_future = asyncio.ensure_future(coro)
-        with self._cancel_on_sigint(coro_future):
-            try:
-                res = yield coro_future
-            finally:
-                shell.events.trigger('post_execute')
+        if (
+            _asyncio_runner
+            and shell.loop_runner is _asyncio_runner
+            and asyncio.get_event_loop().is_running()
+        ):
+            coro = shell.run_workflow(notebook)
+            coro_future = asyncio.ensure_future(coro)
+
+            with self._cancel_on_sigint(coro_future):
+                try:
+                    res = yield coro_future
+                finally:
+                    shell.events.trigger('post_execute')
+        else:
+            coro = shell.run_workflow(notebook)
+            if shell.trio_runner:
+                runner = shell.trio_runner
+            else:
+                runner = shell.loop_runner
+            res = runner(coro)
         if res.error_before_exec is not None:
             err = res.error_before_exec
         else:

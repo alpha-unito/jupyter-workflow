@@ -208,8 +208,8 @@
         "config"
       ]
     },
-    "scatterSchema": {
-      "$id": "#/definitions/scatterSchema",
+    "scatter": {
+      "$id": "#/definitions/scatter",
       "type": "object",
       "properties": {
         "items": {
@@ -221,7 +221,7 @@
               },
               {
                 "type": "object",
-                "$ref": "#/definitions/scatterSchema"
+                "$ref": "#/definitions/scatter"
               }
             ]
           }
@@ -354,9 +354,9 @@
           },
           "uniqueItems": true
         },
-        "scatterSchema": {
+        "scatter": {
           "type": "object",
-          "$ref": "#/definitions/scatterSchema"
+          "$ref": "#/definitions/scatter"
         },
         "workdir": {
           "type": "string",

@@ -79,9 +79,8 @@ def _get_combinator_from_schema(step: Step,
 
 
 def _get_input_combinator(step: Step,
-                          scatter_inputs: Optional[Set[Text]] = None,
-                          scatter_schema: Optional[Any] = None) -> InputCombinator:
-    scatter_inputs = scatter_inputs or set()
+                          scatter: Optional[Any] = None) -> InputCombinator:
+    scatter_inputs = _get_scatter_inputs(scatter)
     # If there are no scatter ports in this step, create a single DotProduct combinator
     if not [n for n in scatter_inputs]:
         input_combinator = DotProductInputCombinator(name=utils.random_name(), step=step)
@@ -122,6 +121,16 @@ def _get_scatter_inputs(scatter_schema: Optional[MutableMapping[Text, Any]]) -> 
             else:
                 scatter_inputs.update(_get_scatter_inputs(entry))
     return scatter_inputs
+
+
+def _substitute_in_combinator(combinator: InputCombinator, port: InputPort):
+    if port.name in combinator.ports:
+        combinator.ports[port.name] = port
+        return combinator
+    combinators = filter(lambda c: isinstance(c, InputCombinator), combinator.ports.values())
+    for comb in combinators:
+        combinator.ports[comb.name] = _substitute_in_combinator(comb, port)
+    return combinator
 
 
 class NamesStack(object):
@@ -308,6 +317,52 @@ class JupyterNotebookTranslator(object):
     def __init__(self, context: StreamFlowContext):
         self.context: StreamFlowContext = context
 
+    async def optimize_scatter(self,
+                               workflow: Workflow) -> None:
+        # Collect gather ports
+        gather_ports = set()
+        for s in workflow.steps.values():
+            for p in s.output_ports.values():
+                if isinstance(p, GatherOutputPort):
+                    gather_ports.add(posixpath.join(s.name, p.name))
+        # Remove gather ports that are workflow output ports
+        for output_port in workflow.output_ports.values():
+            gather_ports.discard(posixpath.join(output_port.step.name, output_port.name))
+        # Remove gather ports that do not have only scatter ports in their successors
+        for step in workflow.steps.values():
+            for port in step.input_ports.values():
+                if port.dependee:
+                    dependee = posixpath.join(port.dependee.step.name, port.dependee.name)
+                    if dependee in gather_ports:
+                        if not isinstance(port, ScatterInputPort):
+                            gather_ports.discard(dependee)
+        # Collect scatter ports
+        scatter_ports = set()
+        for s in workflow.steps.values():
+            for p in s.input_ports.values():
+                if isinstance(p, ScatterInputPort):
+                    scatter_ports.add(p)
+        # If port depends on a survived gather port, perform optimization
+        optimized_out_ports = {}
+        for port in scatter_ports:
+            if port.dependee:
+                dependee = posixpath.join(port.dependee.step.name, port.dependee.name)
+                if dependee in gather_ports:
+                    in_port = DefaultInputPort(name=port.name, step=port.step)
+                    in_port.token_processor = port.token_processor
+                    port.step.input_ports[port.name] = in_port
+                    port.step.input_combinator = _substitute_in_combinator(
+                        combinator=port.step.input_combinator,
+                        port=in_port)
+                    if dependee in optimized_out_ports:
+                        in_port.dependee = optimized_out_ports[dependee]
+                    else:
+                        out_port = DefaultOutputPort(name=port.dependee.name, step=port.dependee.step)
+                        out_port.token_processor = port.dependee.token_processor
+                        port.dependee.step.output_ports[port.dependee.name] = out_port
+                        in_port.dependee = out_port
+                        optimized_out_ports[dependee] = out_port
+
     async def translate_cell(self,
                              cell: JupyterCell,
                              metadata: Optional[MutableMapping[Text, Any]],
@@ -334,7 +389,7 @@ class JupyterNotebookTranslator(object):
         # Process cell inputs
         cell_inputs = metadata['step'].get('in', [])
         input_tokens = {}
-        scatter_inputs = _get_scatter_inputs(metadata['step'].get('scatterSchema'))
+        scatter_inputs = _get_scatter_inputs(metadata['step'].get('scatter'))
         for element in cell_inputs:
             # If is a string, it refers to the name of a variable
             if isinstance(element, Text):
@@ -458,8 +513,7 @@ class JupyterNotebookTranslator(object):
         # Set input combinator for the step
         step.input_combinator = _get_input_combinator(
             step=step,
-            scatter_inputs=scatter_inputs,
-            scatter_schema=metadata['step'].get('scatterSchema'))
+            scatter=metadata['step'].get('scatter'))
         # Create the command to be executed remotely
         step.command = JupyterCommand(
             step=step,
@@ -482,9 +536,7 @@ class JupyterNotebookTranslator(object):
                 autoawait=notebook.autoawait)
             _build_dependencies(workflow, step)
             workflow.steps[step.name] = step
-        # Extract workflow outputs
-        last_step = workflow.steps[notebook.cells[-1].name]
-        for port_name, port in last_step.output_ports.items():
-            workflow.output_ports[last_step.name] = port
+        # Apply rewrite rules
+        await self.optimize_scatter(workflow)
         # Return the final workflow object
         return workflow

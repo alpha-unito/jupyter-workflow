@@ -155,7 +155,8 @@ class JupyterCommand(Command):
                 elif command_token.token_type == 'env':
                     environment[token.name] = token_value
         # List output names to be retrieved from remote context
-        output_names = self.step.output_ports.keys()
+        output_names = [name for name, p in self.step.output_ports.items()
+                        if name != executor.CELL_OUTPUT]
         # Serialize AST nodes to remote resource
         code_path = await self._serialize_to_remote_file(job, self.ast_nodes)
         # Configure output fiel path
