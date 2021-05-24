@@ -31,6 +31,18 @@ from jupyter_workflow.streamflow.command import JupyterCommandOutput
 from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator, JupyterNotebook
 
 
+async def _print_output(step: Step, output_retriever: str, d: str) -> None:
+    token_processor = step.output_ports[executor.CELL_OUTPUT].token_processor
+    token = await step.output_ports[executor.CELL_OUTPUT].get(output_retriever)
+    token = await token_processor.collect_output(token, d)
+    if isinstance(token.job, MutableSequence):
+        output = "\n".join(utils.flatten_list([t.value for t in token.value]))
+    else:
+        output = token.value
+    if output:
+        print(output)
+
+
 class StreamFlowInteractiveShell(ZMQInteractiveShell):
 
     def __init__(self, **kwargs):
@@ -85,11 +97,10 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         # Print output log
         output_retriever = utils.random_name()
         d = tempfile.mkdtemp()
-        token_processor = step.output_ports[executor.CELL_OUTPUT].token_processor
-        token = await step.output_ports[executor.CELL_OUTPUT].get(output_retriever)
-        token = await token_processor.collect_output(token, d)
-        if token.value:
-            print(token.value)
+        await _print_output(
+            step=step,
+            output_retriever=output_retriever,
+            d=d)
         # Retrieve output tokens
         if step.status == Status.COMPLETED:
             output_names = {}
@@ -213,7 +224,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 workflow = await translator.translate(JupyterNotebook(
                     cells=jupyter_cells,
                     autoawait=self.autoawait,
-                    metadata=notebook.get('medatata')))
+                    metadata=notebook.get('metadata')))
                 # Inject inputs
                 input_injector = BaseJob(
                     name=utils.random_name(),
@@ -244,11 +255,10 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 output_retriever = utils.random_name()
                 d = tempfile.mkdtemp()
                 for step in workflow.steps.values():
-                    token_processor = step.output_ports[executor.CELL_OUTPUT].token_processor
-                    token = await step.output_ports[executor.CELL_OUTPUT].get(output_retriever)
-                    token = await token_processor.collect_output(token, d)
-                    if token.value:
-                        print(token.value)
+                    await _print_output(
+                        step=step,
+                        output_retriever=output_retriever,
+                        d=d)
             except:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]

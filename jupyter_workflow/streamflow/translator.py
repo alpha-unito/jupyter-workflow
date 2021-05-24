@@ -17,7 +17,8 @@ from streamflow.workflow.step import BaseStep
 from jupyter_workflow.streamflow import executor
 from jupyter_workflow.streamflow.combinator import JupyterCartesianProductInputCombinator
 from jupyter_workflow.streamflow.command import JupyterCommand, JupyterCommandToken
-from jupyter_workflow.streamflow.token_processor import FileTokenProcessor, NameTokenProcessor, ControlTokenProcessor
+from jupyter_workflow.streamflow.token_processor import FileTokenProcessor, NameTokenProcessor, ControlTokenProcessor, \
+    OutputLogTokenProcessor
 
 
 def _build_dependencies(workflow: Workflow, in_step: Step) -> None:
@@ -64,15 +65,16 @@ def _get_combinator_from_schema(step: Step,
         combinator = JupyterCartesianProductInputCombinator(name=combinator_name, step=step)
     else:
         combinator = DotProductInputCombinator(name=combinator_name, step=step)
-    for entry in scatter_schema['items'] or {}:
-        if isinstance(entry, str):
-            combinator.ports[entry] = scatter_ports[entry]
-        else:
-            inner_combinator = _get_combinator_from_schema(
-                step=step,
-                scatter_ports=scatter_ports,
-                scatter_schema=entry)
-            combinator.ports[inner_combinator.name] = inner_combinator
+    if scatter_schema:
+        for entry in scatter_schema.get('items') or []:
+            if isinstance(entry, str):
+                combinator.ports[entry] = scatter_ports[entry]
+            else:
+                inner_combinator = _get_combinator_from_schema(
+                    step=step,
+                    scatter_ports=scatter_ports,
+                    scatter_schema=entry)
+                combinator.ports[inner_combinator.name] = inner_combinator
     return combinator
 
 
@@ -113,11 +115,12 @@ def _get_input_combinator(step: Step,
 
 def _get_scatter_inputs(scatter_schema: Optional[MutableMapping[Text, Any]]) -> Set:
     scatter_inputs = set()
-    for entry in scatter_schema['items'] or {}:
-        if isinstance(entry, str):
-            scatter_inputs.add(entry)
-        else:
-            scatter_inputs.update(_get_scatter_inputs(entry))
+    if scatter_schema:
+        for entry in scatter_schema.get('items') or []:
+            if isinstance(entry, str):
+                scatter_inputs.add(entry)
+            else:
+                scatter_inputs.update(_get_scatter_inputs(entry))
     return scatter_inputs
 
 
@@ -382,7 +385,10 @@ class JupyterNotebookTranslator(object):
             input_names = _extract_dependencies(cell.name, cell.compiler, cell.code)
             for name in input_names:
                 if name not in step.input_ports:
-                    port = DefaultInputPort(name=name, step=step)
+                    if name in scatter_inputs:
+                        port = ScatterInputPort(name=name, step=step)
+                    else:
+                        port = DefaultInputPort(name=name, step=step)
                     port.token_processor = NameTokenProcessor(
                         port=port,
                         compiler=cell.compiler,
@@ -440,8 +446,14 @@ class JupyterNotebookTranslator(object):
                     # Register step port
                     step.output_ports[name] = output_port
         # Add output log port
-        output_log_port = DefaultOutputPort(name=executor.CELL_OUTPUT, step=step)
-        output_log_port.token_processor = ControlTokenProcessor(port=output_log_port)
+        if scatter_inputs:
+            output_log_port = GatherOutputPort(
+                name=executor.CELL_OUTPUT,
+                step=step,
+                merge_strategy=lambda values: sorted(values, key=lambda t: int(posixpath.basename(t.tag))))
+        else:
+            output_log_port = DefaultOutputPort(name=executor.CELL_OUTPUT, step=step)
+        output_log_port.token_processor = OutputLogTokenProcessor(port=output_log_port)
         step.output_ports[executor.CELL_OUTPUT] = output_log_port
         # Set input combinator for the step
         step.input_combinator = _get_input_combinator(
@@ -466,7 +478,7 @@ class JupyterNotebookTranslator(object):
         for cell in notebook.cells:
             step = await self.translate_cell(
                 cell=cell,
-                metadata={**cell.metadata, **notebook.metadata},
+                metadata={**notebook.metadata, **cell.metadata},
                 autoawait=notebook.autoawait)
             _build_dependencies(workflow, step)
             workflow.steps[step.name] = step
