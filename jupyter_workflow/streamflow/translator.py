@@ -382,7 +382,7 @@ class JupyterNotebookTranslator(object):
         interpreter = metadata.get('interpreter', 'ipython')
         # Create a step structure
         step = BaseStep(
-            name=metadata.get('cell_id', cell.name),
+            name=metadata['cell_id'],
             context=self.context,
             target=target)
         step.workdir = metadata['step'].get('workdir')

@@ -56,6 +56,7 @@ define([
                     } else {
                         kernel_options.workflow = JSON.parse(JSON.stringify(this.metadata['workflow']));
                     }
+                    kernel_options.workflow['cell_id'] = this.cell_id;
                 }
 
                 this.last_msg_id = this.kernel.execute(this.get_text(), callbacks, kernel_options);
@@ -75,10 +76,12 @@ define([
                 this.events.on('finished_iopub.Kernel', handleFinished);
             };
 
-            let _CallbackProxy = function(notebook) {
+            let _CallbackProxy = function(cells) {
                 this._shell = [];
                 this._iopub = [];
-                this.cells = notebook.cells;
+                this.cells_ids = cells.map(function(cell) {
+                    return cell.cell_id;
+                });
 
                 this.shell = {
                     reply: $.proxy(this._handle_reply, this),
@@ -105,8 +108,8 @@ define([
             };
             _CallbackProxy.prototype._handle_output = function(msg) {
                 const cell_id = msg.content.name;
-                for(let index = 0; index < this.cells.length; index++) {
-                    if(this.cells[index].metadata.cell_id === cell_id) {
+                for(let index = 0; index < this.cells_ids.length; index++) {
+                    if(this.cells_ids[index] === cell_id) {
                         return this._iopub[index].output.apply(null, arguments);
                     }
                 }
@@ -143,7 +146,7 @@ define([
                     return;
                 }
 
-                let callbacks = new _CallbackProxy(notebook);
+                let callbacks = new _CallbackProxy(cells);
 
                 cells.forEach(function (cell){
                     cell.clear_output(false, true);

@@ -50,7 +50,7 @@ class WorkflowIPythonKernel(IPythonKernel):
                            None)
         if workflow_config is not None:
             try:
-                validate(workflow_config['workflow'])
+                validate({k: v for k, v in workflow_config['workflow'].items() if k != 'cell_id'})
             except BaseException as e:
                 self.log.error(str(e))
                 return metadata
@@ -136,7 +136,7 @@ class WorkflowIPythonKernel(IPythonKernel):
                 'ename': str(type(err).__name__),
                 'evalue': safe_unicode(err),
             })
-        reply_content['execution_count'] = shell.execution_count
+        reply_content['execution_count'] = shell.execution_count - 1
         reply_content['payload'] = shell.payload_manager.read_payload()
         shell.payload_manager.clear_payload()
         return reply_content
