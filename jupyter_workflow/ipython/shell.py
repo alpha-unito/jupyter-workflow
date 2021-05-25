@@ -1,8 +1,10 @@
 import ast
 import asyncio
+import json
 import os
 import sys
 import tempfile
+from contextlib import redirect_stderr, redirect_stdout
 from contextvars import ContextVar
 from typing import MutableMapping, Any, List, Tuple, MutableSequence
 
@@ -31,16 +33,14 @@ from jupyter_workflow.streamflow.command import JupyterCommandOutput
 from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator, JupyterNotebook
 
 
-async def _print_output(step: Step, output_retriever: str, d: str) -> None:
+async def _get_output(step: Step, output_retriever: str, d: str) -> Text:
     token_processor = step.output_ports[executor.CELL_OUTPUT].token_processor
     token = await step.output_ports[executor.CELL_OUTPUT].get(output_retriever)
     token = await token_processor.collect_output(token, d)
     if isinstance(token.job, MutableSequence):
-        output = "\n".join(utils.flatten_list([t.value for t in token.value]))
+        return "\n".join([t for t in utils.flatten_list([t.value for t in token.value]) if t])
     else:
-        output = token.value
-    if output:
-        print(output)
+        return token.value
 
 
 class StreamFlowInteractiveShell(ZMQInteractiveShell):
@@ -97,10 +97,12 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         # Print output log
         output_retriever = utils.random_name()
         d = tempfile.mkdtemp()
-        await _print_output(
+        output = await _get_output(
             step=step,
             output_retriever=output_retriever,
             d=d)
+        if output:
+            print(output)
         # Retrieve output tokens
         if step.status == Status.COMPLETED:
             output_names = {}
@@ -205,7 +207,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             return result
 
         cells = [self.transform_cell(cell['code']) for cell in notebook['cells']]
-        with self.builtin_trap:
+        with self.builtin_trap, self.display_trap:
             try:
                 # Extract cells code
                 jupyter_cells = []
@@ -250,15 +252,20 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             # Execute workflow
             d = tempfile.mkdtemp()
             try:
-                await StreamFlowExecutor(context=self.context, workflow=workflow).run(output_dir=d)
-                # Print output logs
-                output_retriever = utils.random_name()
-                d = tempfile.mkdtemp()
-                for step in workflow.steps.values():
-                    await _print_output(
-                        step=step,
-                        output_retriever=output_retriever,
-                        d=d)
+                with open(os.devnull, 'w') as devnull:
+                    with redirect_stdout(devnull), redirect_stderr(devnull):
+                        await StreamFlowExecutor(context=self.context, workflow=workflow).run(output_dir=d)
+                        # Print output logs
+                        output_retriever = utils.random_name()
+                        d = tempfile.mkdtemp()
+                        result.result = {}
+                        for step in workflow.steps.values():
+                            output = await _get_output(
+                                step=step,
+                                output_retriever=output_retriever,
+                                d=d)
+                            if output:
+                                result.result[step.name] = output
             except:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]

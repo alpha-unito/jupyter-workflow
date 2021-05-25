@@ -54,7 +54,7 @@ define([
                             ...this.metadata['workflow'],
                             ...this.notebook.metadata['workflow']};
                     } else {
-                        kernel_options.workflow = this.metadata['workflow'];
+                        kernel_options.workflow = JSON.parse(JSON.stringify(this.metadata['workflow']));
                     }
                 }
 
@@ -73,6 +73,50 @@ define([
                 }
 
                 this.events.on('finished_iopub.Kernel', handleFinished);
+            };
+
+            let _CallbackProxy = function(notebook) {
+                this._shell = [];
+                this._iopub = [];
+                this.cells = notebook.cells;
+
+                this.shell = {
+                    reply: $.proxy(this._handle_reply, this),
+                    payload: {
+                        set_next_input: $.proxy(this._handle_payload_set_next_input, this),
+                        page: $.proxy(this._handle_payload_page, this)
+                    }
+                };
+                this.iopub = {
+                    output: $.proxy(this._handle_output, this),
+                    clear_output: $.proxy(this._handle_clear_output, this)
+                };
+            };
+
+            _CallbackProxy.prototype._handle_reply = function() {
+                const args = arguments;
+                this._shell.forEach(function(s) { s.reply.apply(null, args)});
+            };
+            _CallbackProxy.prototype._handle_payload_set_next_input = function() {
+                return null
+            };
+            _CallbackProxy.prototype._handle_payload_page = function () {
+                return this._shell[0].payload.page.apply(null, arguments);
+            };
+            _CallbackProxy.prototype._handle_output = function(msg) {
+                const cell_id = msg.content.name;
+                for(let index = 0; index < this.cells.length; index++) {
+                    if(this.cells[index].metadata.cell_id === cell_id) {
+                        return this._iopub[index].output.apply(null, arguments);
+                    }
+                }
+            };
+            _CallbackProxy.prototype._handle_clear_output = function() {
+                return this._iopub[0].clear_output.apply(null, arguments);
+            };
+            _CallbackProxy.prototype.add_callbacks = function(callbacks) {
+                this._shell.push(callbacks.shell);
+                this._iopub.push(callbacks.iopub);
             };
 
             let Notebook = _notebook.Notebook;
@@ -99,7 +143,10 @@ define([
                     return;
                 }
 
+                let callbacks = new _CallbackProxy(notebook);
+
                 cells.forEach(function (cell){
+                    cell.clear_output(false, true);
                     const old_msg_id = cell.last_msg_id;
                     if (old_msg_id) {
                         cell.kernel.clear_callbacks_for_msg(old_msg_id);
@@ -112,12 +159,15 @@ define([
                         return;
                     }
 
+                    callbacks.add_callbacks(cell.get_callbacks());
+
                     cell.set_input_prompt('*');
                     cell.element.addClass("running");
 
                     let cell_object = {code: cell.get_text()}
                     if (cell.metadata !== undefined && cell.metadata.hasOwnProperty('workflow')) {
-                        cell_object.metadata = cell.metadata['workflow'];
+                        cell_object.metadata = JSON.parse(JSON.stringify(cell.metadata['workflow']));
+                        cell_object.metadata['cell_id'] = cell.cell_id;
                     }
                     notebook.cells.push(cell_object);
                 });
@@ -126,7 +176,8 @@ define([
                     notebook : notebook
                 };
                 this.kernel.events.trigger('workflow_request.Kernel', {kernel: this, content: content});
-                return this.kernel.send_shell_message("workflow_request", content, cells[0].get_callbacks());
+
+                return this.kernel.send_shell_message("workflow_request", content, callbacks);
             };
 
             var action = {

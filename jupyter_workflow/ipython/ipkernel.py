@@ -7,6 +7,7 @@ import traitlets
 from ipykernel.ipkernel import IPythonKernel
 from ipykernel.jsonutil import json_clean
 from ipython_genutils.py3compat import PY3, safe_unicode
+from jupyter_client.session import extract_header
 from tornado import gen
 
 from jupyter_workflow.config.validator import validate
@@ -53,10 +54,7 @@ class WorkflowIPythonKernel(IPythonKernel):
             except BaseException as e:
                 self.log.error(str(e))
                 return metadata
-            metadata['sf_token'] = self.shell.wf_cell_config.set(
-                {**workflow_config['workflow'], **{
-                    'step_id': parent['msg_id']
-                }})
+            metadata['sf_token'] = self.shell.wf_cell_config.set(workflow_config['workflow'])
         # Return metadata
         return metadata
 
@@ -78,7 +76,7 @@ class WorkflowIPythonKernel(IPythonKernel):
             self.log.error("%s", parent)
             return
         metadata = self.init_metadata(parent)
-        reply_content = yield gen.maybe_future(self.do_workflow(notebook))
+        reply_content = yield gen.maybe_future(self.do_workflow(notebook, ident, parent))
         sys.stdout.flush()
         sys.stderr.flush()
         if self._execute_sleep:
@@ -86,13 +84,13 @@ class WorkflowIPythonKernel(IPythonKernel):
         # Send the reply.
         reply_content = json_clean(reply_content)
         metadata = self.finish_metadata(parent, metadata, reply_content)
-        reply_msg = self.session.send(stream, 'workflow_reply',
+        reply_msg = self.session.send(stream, 'execute_reply',
                                       reply_content, parent, metadata=metadata,
                                       ident=ident)
         self.log.debug("%s", reply_msg)
 
     @gen.coroutine
-    def do_workflow(self, notebook):
+    def do_workflow(self, notebook, ident, parent):
         shell = self.shell
         reply_content = {}
         if (
@@ -115,6 +113,15 @@ class WorkflowIPythonKernel(IPythonKernel):
             else:
                 runner = shell.loop_runner
             res = runner(coro)
+        # Send outputs to cell streams
+        for cell_name, content in res.result.items():
+            self.session.send(
+                self.iopub_thread,
+                'stream',
+                content={'name': cell_name, 'text': content},
+                parent=extract_header(parent),
+                ident=ident)
+        # Send reply message
         if res.error_before_exec is not None:
             err = res.error_before_exec
         else:
@@ -129,8 +136,7 @@ class WorkflowIPythonKernel(IPythonKernel):
                 'ename': str(type(err).__name__),
                 'evalue': safe_unicode(err),
             })
-        # Fix execution count to 0 for each cell
-        reply_content['execution_count'] = 0,
+        reply_content['execution_count'] = shell.execution_count
         reply_content['payload'] = shell.payload_manager.read_payload()
         shell.payload_manager.clear_payload()
         return reply_content
