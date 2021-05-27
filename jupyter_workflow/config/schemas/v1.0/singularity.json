@@ -106,7 +106,7 @@
     },
     "network": {
       "type": "string",
-      "description": "Specify desired network type separated by commas, each network will bring up a dedicated interface inside container",
+      "description": "Specify desired network type separated by commas, each network will bring up a dedicated interface inside container"
       "default": "bridge"
     },
     "networkArgs": {
@@ -164,11 +164,6 @@
     "pidFile": {
       "type": "string",
       "description": "Write instance PID to the file with the given name"
-    },
-    "readBufferSize": {
-      "type": "integer",
-      "description": "Buffer size allocated for local disk reads during data transfers",
-      "default": "4 * transferBufferSize"
     },
     "replicas": {
       "type": "integer",

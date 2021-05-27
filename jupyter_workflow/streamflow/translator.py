@@ -57,8 +57,8 @@ def _extract_dependencies(cell_name: Text,
 
 
 def _get_combinator_from_scatter(step: Step,
-                                scatter_ports: MutableMapping[Text, InputPort],
-                                scatter: Optional[MutableMapping[Text, Any]] = None) -> InputCombinator:
+                                 scatter_ports: MutableMapping[Text, InputPort],
+                                 scatter: Optional[MutableMapping[Text, Any]] = None) -> InputCombinator:
     scatter_method = scatter.get('method', 'cartesian')
     combinator_name = utils.random_name()
     if scatter_method == 'cartesian':
