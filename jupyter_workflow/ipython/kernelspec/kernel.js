@@ -141,6 +141,8 @@ define([
                 const that = this;
                 const cells = [...Array(this.ncells()).keys()].map(function(index) {
                     return that.get_cell(index);
+                }).filter(function(cell) {
+                    return cell.cell_type === 'code';
                 });
                 if (cells.length === 0) {
                     return;

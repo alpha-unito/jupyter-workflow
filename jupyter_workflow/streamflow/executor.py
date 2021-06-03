@@ -60,6 +60,10 @@ def _deserialize(path, default=None):
         return default
 
 
+def _load_element(element):
+    return [_load_element(el) for el in element] if isinstance(element, MutableSequence) else dill.loads(element)
+
+
 def _serialize(compiler, namespace, args):
     if args.predump_output_serializers:
         predump_output_serializers = _deserialize(args.predump_output_serializers)
@@ -145,8 +149,7 @@ async def run_code(args):
             compiler = RemoteCompiler()
             # Deserialize elements
             ast_nodes = _deserialize(args.code_file)
-            user_ns = prepare_ns({k: [dill.loads(el) for el in v] if isinstance(v, MutableSequence) else dill.loads(v)
-                                  for k, v in _deserialize(args.local_ns_file, {}).items()})
+            user_ns = prepare_ns({k: _load_element(v) for k, v in _deserialize(args.local_ns_file, {}).items()})
             # Apply postload serialization hooks if present
             if args.postload_input_serializers:
                 postload_input_serializers = _deserialize(args.postload_input_serializers)
