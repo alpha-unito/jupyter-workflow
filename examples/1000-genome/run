@@ -1,0 +1,11 @@
+#!/bin/bash
+SCRIPT_DIRECTORY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+docker run                                          \
+	-it                                               \
+	--rm                                              \
+	-p 8888:8888                                      \
+	-v ${SCRIPT_DIRECTORY}/work:/home/jovyan/work     \
+	-v ${HOME}/.ssh:/home/jovyan/.ssh                 \
+        -v ${HOME}/.kube:/home/jovyan/.kube         \
+	alphaunito/1000-genome-notebook

@@ -1,0 +1,119 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: 1000-genome
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: 1000-genome-work
+  namespace: 1000-genome
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: cdk-cinder
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: 1000-genome-streamflow-tmp
+  namespace: 1000-genome
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: cdk-cinder
+
+---
+
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: 1000-genome-notebook
+  namespace: 1000-genome
+  labels:
+    app: 1000-genome-notebook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: 1000-genome-notebook
+  template:
+    metadata:
+      labels:
+        app: 1000-genome-notebook
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      serviceAccountName: 1000-genome-service-account
+      containers:
+        - name: 1000-genome-notebook
+          image: alphaunito/1000-genome-notebook
+          imagePullPolicy: Always
+          ports:
+            - name: jupyter
+              containerPort: 8888
+          stdin: true
+          volumeMounts:
+          - mountPath: /home/jovyan/work
+            name: 1000-genome-work
+          - mountPath: /tmp/streamflow
+            name: 1000-genome-streamflow-tmp
+      volumes:
+        - name: 1000-genome-work
+          persistentVolumeClaim:
+            claimName: 1000-genome-work
+        - name: 1000-genome-streamflow-tmp
+          persistentVolumeClaim:
+            claimName: 1000-genome-streamflow-tmp
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: svc-1000-genome-notebook
+  namespace: 1000-genome
+spec:
+  selector:
+    app: 1000-genome-notebook
+  ports:
+    - protocol: TCP
+      name: jupyter
+      port: 8888
+      targetPort: jupyter
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: 1000-genome
+  name: 1000-genome-service-account
+
+---
+
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: 1000-genome-admin
+  namespace: 1000-genome
+subjects:
+- kind: ServiceAccount
+  name: 1000-genome-service-account
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: ""
