@@ -1,0 +1,19 @@
+#!/bin/bash
+
+#PBS -N espresso_work
+#PBS -o espresso_work.txt 
+#PBS -q cpu
+#PBS -e espresso_work_error.txt 
+#PBS -k oe
+#PBS -m e
+#PBS -l select=1:ncpus=48:mpiprocs=16:mem=128gb
+
+module load ucx
+source /apps/INTEL/OneAPI/compiler/latest/env/vars.sh
+source /apps/INTEL/OneAPI/mpi/latest/env/vars.sh
+source /apps/INTEL/OneAPI/mkl/latest/env/vars.sh
+
+export OMP_NUM_THREADS=3
+export FI_PROVIDER=mlx
+
+{{ streamflow_command }} 

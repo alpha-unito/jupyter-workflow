@@ -51,7 +51,7 @@ RUN apt-get update \
 RUN pip install --no-cache-dir \
         bcrypt==3.2.0 \
         dill==0.3.3 \
-        jupyter-workflow==0.0.19 \
+        jupyter-workflow==0.0.37 \
     && python -m jupyter_workflow.ipython.install \
     && fix-permissions /usr/local/bin \
     && fix-permissions "${CONDA_DIR}"
