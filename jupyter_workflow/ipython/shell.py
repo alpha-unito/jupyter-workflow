@@ -1,21 +1,23 @@
 import ast
 import asyncio
-import json
 import os
+import posixpath
 import sys
-import tempfile
 from contextlib import redirect_stderr, redirect_stdout
 from contextvars import ContextVar
 from typing import MutableMapping, Any, List, Tuple, MutableSequence
 
 import IPython
+import dill
 from IPython.core.error import InputRejected
 from IPython.core.interactiveshell import softspace, ExecutionResult
 from ipykernel.zmqshell import ZMQInteractiveShell
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
+from streamflow.core.data import LOCAL_LOCATION
 from streamflow.core.exception import WorkflowDefinitionException
-from streamflow.core.workflow import Step, Job, Status, TerminationToken
+from streamflow.core.utils import get_token_value
+from streamflow.core.workflow import Workflow, Token
 from streamflow.data.data_manager import DefaultDataManager
 from streamflow.deployment.deployment_manager import DefaultDeploymentManager
 from streamflow.recovery.checkpoint_manager import DummyCheckpointManager
@@ -23,52 +25,45 @@ from streamflow.recovery.failure_manager import DummyFailureManager
 from streamflow.scheduling.policy import DataLocalityPolicy
 from streamflow.scheduling.scheduler import DefaultScheduler
 from streamflow.workflow.executor import StreamFlowExecutor
-from streamflow.workflow.port import DefaultOutputPort
-from streamflow.workflow.step import BaseStep, BaseJob
+from streamflow.workflow.step import DeployStep
 from traitlets import observe
 from typing_extensions import Text
 
 from jupyter_workflow.streamflow import executor
-from jupyter_workflow.streamflow.command import JupyterCommandOutput
 from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator, JupyterNotebook
+from jupyter_workflow.streamflow.utils import get_stdout
 
 
-async def _get_output(step: Step, output_retriever: str, d: str) -> Text:
-    token_processor = step.output_ports[executor.CELL_OUTPUT].token_processor
-    token = await step.output_ports[executor.CELL_OUTPUT].get(output_retriever)
-    token = await token_processor.collect_output(token, d)
-    if isinstance(token.job, MutableSequence):
-        return "\n".join([t for t in utils.flatten_list([t.value for t in token.value]) if t])
-    else:
-        return token.value
+def build_context() -> StreamFlowContext:
+    context: StreamFlowContext = StreamFlowContext(os.getcwd())
+    context.checkpoint_manager = DummyCheckpointManager(context)
+    context.data_manager = DefaultDataManager(context)
+    context.deployment_manager = DefaultDeploymentManager(os.getcwd())
+    context.failure_manager = DummyFailureManager(context)
+    context.scheduler = DefaultScheduler(context, DataLocalityPolicy())
+    return context
+
+
+async def _get_outputs(workflow: Workflow) -> MutableMapping[str, Token]:
+    output_tasks = {posixpath.split(name)[0]: asyncio.create_task(port.get(utils.random_name()))
+                    for name, port in workflow.get_output_ports().items()
+                    if posixpath.split(name)[1] == executor.CELL_OUTPUT}
+    return dict(zip(output_tasks.keys(), await asyncio.gather(*output_tasks.values())))
 
 
 class StreamFlowInteractiveShell(ZMQInteractiveShell):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.context: StreamFlowContext = StreamFlowContext(os.getcwd())
-        self.context.checkpoint_manager = DummyCheckpointManager(self.context)
-        self.context.data_manager = DefaultDataManager(self.context)
-        self.context.deployment_manager = DefaultDeploymentManager(os.getcwd())
-        self.context.failure_manager = DummyFailureManager(self.context)
-        self.context.scheduler = DefaultScheduler(self.context, DataLocalityPolicy())
+        self.context: StreamFlowContext = build_context()
+        self.context.data_manager.register_path(
+            deployment=LOCAL_LOCATION,
+            location=os.path.join(executor.__file__),
+            path=os.path.join(executor.__file__),
+            relpath=os.path.basename(executor.__file__))
+        self.deployment_map: MutableMapping[str, DeployStep] = {}
         self.wf_cell_config: ContextVar[MutableMapping[Text, Any]] = ContextVar('wf_cell_config', default={})
         self.sys_excepthook = None
-
-    async def _inject_inputs(self, step: Step, job: Job):
-        for port_name, port in step.input_ports.items():
-            if port.dependee is None:
-                output_port = DefaultOutputPort(name=port_name)
-                output_port.step = step
-                output_port.token_processor = port.token_processor
-                command_output = JupyterCommandOutput(
-                    value=None,
-                    status=Status.COMPLETED,
-                    user_ns=self.user_ns)
-                output_port.put(await output_port.token_processor.compute_token(job, command_output))
-                output_port.put(TerminationToken(port_name))
-                port.dependee = output_port
 
     async def _run_with_streamflow(self,
                                    cell_name: Text,
@@ -81,42 +76,30 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             code=ast_nodes,
             compiler=compiler,
             metadata=cell_config)
-        translator = JupyterNotebookTranslator(context=self.context)
-        step = await translator.translate_cell(
-            cell=cell,
-            autoawait=self.autoawait,
-            metadata=cell_config)
-        # Inject inputs
-        input_injector = BaseJob(
-            name=utils.random_name(),
-            step=BaseStep(utils.random_name(), self.context),
-            inputs=[])
-        await self._inject_inputs(step=step, job=input_injector)
-        # Execute the step
-        await step.run()
-        # Print output log
-        output_retriever = utils.random_name()
-        d = tempfile.mkdtemp()
-        output = await _get_output(
-            step=step,
-            output_retriever=output_retriever,
-            d=d)
-        if output:
-            print(output)
-        # Retrieve output tokens
-        if step.status == Status.COMPLETED:
-            output_names = {}
-            for port_name, port in step.output_ports.items():
-                if port_name != executor.CELL_OUTPUT:
-                    token_processor = step.output_ports[port_name].token_processor
-                    token = await step.output_ports[port_name].get(output_retriever)
-                    token = await token_processor.collect_output(token, d)
-                    if isinstance(token.job, MutableSequence):
-                        output_names[token.name] = utils.flatten_list([t.value for t in token.value])
-                    else:
-                        output_names[token.name] = token.value
-            # Update namespaces
-            self.user_ns.update(output_names)
+        # Create a notebook with a single cell
+        notebook = JupyterNotebook(
+            cells=[cell],
+            autoawait=self.autoawait)
+        # Translate notebook into workflow
+        translator = JupyterNotebookTranslator(
+            context=self.context,
+            deployment_map=self.deployment_map,
+            user_ns=self.user_ns)
+        workflow = await translator.translate(notebook=notebook)
+        try:
+            # Execute workflow
+            await StreamFlowExecutor(workflow).run()
+            # Retrieve outputs and update namespaces
+            output_tasks = {posixpath.split(name)[0]: asyncio.create_task(port.get(utils.random_name()))
+                            for name, port in workflow.get_output_ports().items()
+                            if posixpath.split(name)[1] != executor.CELL_OUTPUT}
+            self.user_ns.update(dict(zip(output_tasks.keys(), [
+                [dill.loads(v) for v in get_token_value(t)] if isinstance(get_token_value(t), MutableSequence)
+                else dill.loads(get_token_value(t)) for t in await asyncio.gather(*output_tasks.values())])))
+        finally:
+            # Print output log
+            if output := next(iter((await _get_outputs(workflow)).values())):
+                print(get_stdout(get_token_value(output)))
 
     @observe('exit_now')
     def _update_exit_now(self, change):
@@ -152,14 +135,12 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                         ast.fix_missing_locations(nnode)
                         nodelist.append(nnode)
                 interactivity = 'last_expr'
-
             _async = False
             if interactivity == 'last_expr':
                 if isinstance(nodelist[-1], ast.Expr):
                     interactivity = "last"
                 else:
                     interactivity = "none"
-
             if interactivity == 'none':
                 to_run_exec, to_run_interactive = nodelist, []
             elif interactivity == 'last':
@@ -168,23 +149,19 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 to_run_exec, to_run_interactive = [], nodelist
             else:
                 raise ValueError("Interactivity was %r" % interactivity)
-
             try:
                 # refactor that to just change the mod constructor.
                 to_run = []
                 for node in to_run_exec:
                     to_run.append((node, 'exec'))
-
                 for node in to_run_interactive:
                     to_run.append((node, 'single'))
-
                 # Run AST nodes remotely
                 await self._run_with_streamflow(
                     cell_name=cell_name,
                     compiler=compiler,
                     ast_nodes=to_run,
                     cell_config=cell_config)
-
                 # Flush softspace
                 if softspace(sys.stdout, 0):
                     print()
@@ -222,18 +199,15 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                         compiler=self.compile,
                         metadata=metadata))
                 # Build workflow
-                translator = JupyterNotebookTranslator(context=self.context)
-                workflow = await translator.translate(JupyterNotebook(
-                    cells=jupyter_cells,
-                    autoawait=self.autoawait,
-                    metadata=notebook.get('metadata')))
-                # Inject inputs
-                input_injector = BaseJob(
-                    name=utils.random_name(),
-                    step=BaseStep(utils.random_name(), self.context),
-                    inputs=[])
-                for step in workflow.steps.values():
-                    await self._inject_inputs(step=step, job=input_injector)
+                translator = JupyterNotebookTranslator(
+                    context=self.context,
+                    deployment_map=self.deployment_map,
+                    user_ns=self.user_ns)
+                workflow = await translator.translate(
+                    notebook=JupyterNotebook(
+                        cells=jupyter_cells,
+                        autoawait=self.autoawait,
+                        metadata=notebook.get('metadata')))
             except self.custom_exceptions as e:
                 etype, value, tb = sys.exc_info()
                 self.CustomTB(etype, value, tb)
@@ -250,22 +224,16 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 return error_before_exec(e)
             self.displayhook.exec_result = result
             # Execute workflow
-            d = tempfile.mkdtemp()
             try:
                 with open(os.devnull, 'w') as devnull:
                     with redirect_stdout(devnull), redirect_stderr(devnull):
-                        await StreamFlowExecutor(context=self.context, workflow=workflow).run(output_dir=d)
+                        await StreamFlowExecutor(workflow).run()
                         # Print output logs
-                        output_retriever = utils.random_name()
-                        d = tempfile.mkdtemp()
                         result.result = {}
-                        for step in workflow.steps.values():
-                            output = await _get_output(
-                                step=step,
-                                output_retriever=output_retriever,
-                                d=d)
-                            if output:
-                                result.result[step.name] = output
+                        outputs = await _get_outputs(workflow)
+                        for cell_name, token in outputs:
+                            if token_value := get_token_value(token):
+                                result.result[cell_name] = get_stdout(token_value)
             except:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]

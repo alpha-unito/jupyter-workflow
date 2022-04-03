@@ -184,6 +184,8 @@ async def run_code(args):
                     dest_path = os.path.join(args.workdir, os.path.basename(output[CELL_LOCAL_NS]))
                     shutil.move(output[CELL_LOCAL_NS], dest_path)
                     output[CELL_LOCAL_NS] = dest_path
+            else:
+                output[CELL_LOCAL_NS] = ''
             output[CELL_STATUS] = 'COMPLETED'
         except BaseException:
             # Populate output object

@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 from typing import MutableMapping, Any
 
-from jsonref import loads
+import streamflow.config
+from jsonref import loads, JsonLoader
 from jsonschema import Draft7Validator
 from typing_extensions import Text
 
@@ -15,7 +17,12 @@ def load_jsonschema(metadata):
         raise Exception(
             'Version in "{}" is unsupported'.format(filename))
     with open(filename, "r") as f:
-        return loads(f.read(), base_uri='file://{}/'.format(base_path), jsonschema=True)
+        return loads(
+            s=f.read(),
+            base_uri='file://{}/schemas/{}/'.format(
+                Path(streamflow.config.__file__).parent,
+                metadata['version']),
+            jsonschema=True)
 
 
 def handle_errors(errors):

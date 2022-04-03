@@ -42,6 +42,10 @@ setup(
         "traitlets"
     ],
     python_requires=">=3.8, <4",
+    tests_require=[
+        "pytest",
+        "pytest-asyncio>=0.17"
+    ],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
