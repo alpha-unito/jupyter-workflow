@@ -12,7 +12,7 @@ import sys
 import traceback
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
 from tempfile import NamedTemporaryFile
-from typing import Dict, MutableSequence
+from typing import Any, Dict, List, MutableMapping, MutableSequence, Tuple
 
 if sys.version_info > (3, 8):
     from ast import Module
@@ -86,7 +86,7 @@ def compare(code_obj):
 
 def postload(compiler, name, value, serializer):
     if serializer is not None and 'postload' in serializer:
-        serialization_context = prepare_ns({name: value})
+        serialization_context = prepare_ns({'x': value})
         postload_module = compiler.ast_parse(
             source=serializer['postload'],
             filename='{name}.postload'.format(name=name))
@@ -94,14 +94,14 @@ def postload(compiler, name, value, serializer):
             mod = Module([node], [])
             code_obj = compiler(mod, '', 'exec')
             exec(code_obj, {}, serialization_context)
-        return serialization_context[name]
+        return serialization_context['y']
     else:
         return value
 
 
 def predump(compiler, name, value, serializer):
     if serializer is not None and 'predump' in serializer:
-        serialization_context = prepare_ns({name: value})
+        serialization_context = prepare_ns({'x': value})
         predump_module = compiler.ast_parse(
             source=serializer['predump'],
             filename='{name}.predump'.format(name=name))
@@ -109,7 +109,7 @@ def predump(compiler, name, value, serializer):
             mod = Module([node], [])
             code_obj = compiler(mod, '', 'exec')
             exec(code_obj, {}, serialization_context)
-        return serialization_context[name]
+        return serialization_context['y']
     else:
         return value
 
@@ -129,6 +129,17 @@ class RemoteCompiler(codeop.Compile):
             self.flags &= ~turn_on_bits
 
 
+class RemoteDisplayHook(object):
+
+    def __init__(self, displayhook):
+        self.displayhook = displayhook
+        self.out_var = io.StringIO()
+
+    def __call__(self, obj):
+        with redirect_stdout(self.out_var), redirect_stderr(self.out_var):
+            self.displayhook(obj)
+
+
 def prepare_ns(namespace: Dict) -> Dict:
     namespace.setdefault('__name__', '__main__')
     namespace.setdefault('__builtin__', builtins)
@@ -140,65 +151,74 @@ def prepare_ns(namespace: Dict) -> Dict:
     return namespace
 
 
+async def run_ast_nodes(ast_nodes: List[Tuple[ast.AST, str]],
+                        autoawait: bool,
+                        compiler: codeop.Compile,
+                        user_ns: MutableMapping[str, Any]):
+    for node, mode in ast_nodes:
+        if mode == 'exec':
+            mod = Module([node], [])
+        elif mode == 'single':
+            mod = ast.Interactive([node])
+        with compiler.extra_flags(getattr(ast, 'PyCF_ALLOW_TOP_LEVEL_AWAIT', 0x0) if autoawait else 0x0):
+            code_obj = compiler(mod, '', mode)
+            asynchronous = compare(code_obj)
+        if asynchronous:
+            await eval(code_obj, user_ns, user_ns)
+        else:
+            exec(code_obj, user_ns, user_ns)
+
+
 async def run_code(args):
     output = {CELL_LOCAL_NS: {}}
     command_output = io.StringIO()
-    with redirect_stdout(command_output), redirect_stderr(command_output):
-        try:
-            # Instantiate compiler
-            compiler = RemoteCompiler()
-            # Deserialize elements
-            ast_nodes = _deserialize(args.code_file)
-            user_ns = prepare_ns({k: _load_element(v) for k, v in _deserialize(args.local_ns_file, {}).items()})
-            # Apply postload serialization hooks if present
-            if args.postload_input_serializers:
-                postload_input_serializers = _deserialize(args.postload_input_serializers)
-                user_ns = {k: postload(
-                    compiler=compiler,
-                    name=k,
-                    value=v,
-                    serializer=postload_input_serializers.get(k)
-                ) for k, v in user_ns.items()}
-            if 'get_ipython' in user_ns:
-                user_ns['get_ipython']().user_ns = user_ns
-            # Exec cell code
-            for node, mode in ast_nodes:
-                if mode == 'exec':
-                    mod = Module([node], [])
-                elif mode == 'single':
-                    mod = ast.Interactive([node])
-                with compiler.extra_flags(getattr(ast, 'PyCF_ALLOW_TOP_LEVEL_AWAIT', 0x0) if args.autoawait else 0x0):
-                    code_obj = compiler(mod, '', mode)
-                    asynchronous = compare(code_obj)
-                if asynchronous:
-                    await eval(code_obj, user_ns, user_ns)
-                else:
-                    exec(code_obj, user_ns, user_ns)
-            # Populate output object
-            output[CELL_OUTPUT] = command_output.getvalue().strip()
-            if 'get_ipython' in locals():
-                output[CELL_OUTPUT] = user_ns['Out'][-1].append(output[CELL_OUTPUT])
-            if args.output_name:
-                output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
-                if args.workdir:
-                    dest_path = os.path.join(args.workdir, os.path.basename(output[CELL_LOCAL_NS]))
-                    shutil.move(output[CELL_LOCAL_NS], dest_path)
-                    output[CELL_LOCAL_NS] = dest_path
-            else:
-                output[CELL_LOCAL_NS] = ''
-            output[CELL_STATUS] = 'COMPLETED'
-        except BaseException:
-            # Populate output object
-            output[CELL_OUTPUT] = command_output.getvalue().strip()
-            if output[CELL_OUTPUT]:
-                output[CELL_OUTPUT] = output[CELL_OUTPUT] + "\n" + traceback.format_exc().strip()
-            else:
-                output[CELL_OUTPUT] = traceback.format_exc().strip()
-            output[CELL_STATUS] = 'FAILED'
-        finally:
-            # Save output json to file
-            with open(args.output_file, 'w') as f:
-                f.write(json.dumps(output))
+    try:
+        # Instantiate compiler
+        compiler = RemoteCompiler()
+        # Deserialize elements
+        ast_nodes = _deserialize(args.code_file)
+        user_ns = prepare_ns({k: _load_element(v) for k, v in _deserialize(args.local_ns_file, {}).items()})
+        # Apply postload serialization hooks if present
+        if args.postload_input_serializers:
+            postload_input_serializers = _deserialize(args.postload_input_serializers)
+            user_ns = {k: postload(
+                compiler=compiler,
+                name=k,
+                value=v,
+                serializer=postload_input_serializers.get(k)
+            ) for k, v in user_ns.items()}
+        if 'get_ipython' in user_ns:
+            user_ns['get_ipython']().user_ns = user_ns
+        # Exec cell code
+        with redirect_stdout(command_output), redirect_stderr(command_output):
+            sys.displayhook = RemoteDisplayHook(sys.displayhook)
+            await run_ast_nodes(ast_nodes, args.autoawait, compiler, user_ns)
+        # Populate output object
+        output[CELL_OUTPUT] = command_output.getvalue().strip()
+        if 'Out' not in user_ns:
+            user_ns['Out'] = {}
+        user_ns['Out'] = sys.displayhook.out_var.getvalue().strip()
+        if args.output_name:
+            output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
+            if args.workdir:
+                dest_path = os.path.join(args.workdir, os.path.basename(output[CELL_LOCAL_NS]))
+                shutil.move(output[CELL_LOCAL_NS], dest_path)
+                output[CELL_LOCAL_NS] = dest_path
+        else:
+            output[CELL_LOCAL_NS] = ''
+        output[CELL_STATUS] = 'COMPLETED'
+    except BaseException:
+        # Populate output object
+        output[CELL_OUTPUT] = command_output.getvalue().strip()
+        if output[CELL_OUTPUT]:
+            output[CELL_OUTPUT] = output[CELL_OUTPUT] + "\n" + traceback.format_exc().strip()
+        else:
+            output[CELL_OUTPUT] = traceback.format_exc().strip()
+        output[CELL_STATUS] = 'FAILED'
+    finally:
+        # Save output json to file
+        with open(args.output_file, 'w') as f:
+            f.write(json.dumps(output))
 
 
 def main(args):

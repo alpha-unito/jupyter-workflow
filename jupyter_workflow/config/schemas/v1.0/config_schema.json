@@ -55,7 +55,6 @@
             "docker",
             "docker-compose",
             "helm",
-            "helm2",
             "helm3",
             "pbs",
             "occam",
@@ -103,24 +102,6 @@
                 "$id": "#/definitions/deployment/properties/config",
                 "type": "object",
                 "$ref": "#/definitions/deployment/definitions/docker-compose"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "helm2"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "config": {
-                "$id": "#/definitions/deployment/properties/config",
-                "type": "object",
-                "$ref": "#/definitions/deployment/definitions/helm2"
               }
             }
           }
@@ -409,11 +390,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "outdir": {
-      "$id": "#/properties/outdir",
-      "type": "string",
-      "default": "$PWD"
     },
     "serializers": {
       "$id": "#/properties/serializers",

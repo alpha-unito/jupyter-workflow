@@ -1,20 +1,16 @@
-import ast
 import asyncio
 import builtins
 import posixpath
-from typing import MutableMapping, Any, MutableSequence
+from typing import Any, MutableMapping, MutableSequence
 
-import dill
-from IPython.core.compilerop import CachingCompiler
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import Target
-from streamflow.core.workflow import Token, Workflow, Job
+from streamflow.core.workflow import Job, Token, Workflow
 from streamflow.data import remotepath
 from streamflow.workflow.step import DeployStep
 from streamflow.workflow.token import ListToken
 
-from jupyter_workflow.streamflow import executor
 from jupyter_workflow.streamflow.token import JupyterFileToken
 
 
@@ -44,13 +40,6 @@ def get_deploy_step(deployment_map: MutableMapping[str, DeployStep],
             name=posixpath.join("__deploy__", target.deployment.name),
             deployment_config=target.deployment)
     return deployment_map[target.deployment.name]
-
-
-def get_stdout(outputs) -> str:
-    try:
-        return str(ast.literal_eval(outputs[executor.CELL_OUTPUT]))
-    except BaseException:
-        return outputs[executor.CELL_OUTPUT]
 
 
 async def get_file_token_from_ns(context: StreamFlowContext,
@@ -89,31 +78,23 @@ async def get_file_token_from_ns(context: StreamFlowContext,
     if isinstance(value, MutableSequence):
         return ListToken(
             tag=utils.get_tag(job.inputs.values()),
-            value=[JupyterFileToken(value=dill.dumps(v)) for v in value])
+            value=[JupyterFileToken(value=v) for v in value])
     else:
         return JupyterFileToken(
             tag=utils.get_tag(job.inputs.values()),
-            value=dill.dumps(value))
+            value=value)
 
 
-def get_token_from_ns(compiler: CachingCompiler,
-                      job: Job,
-                      name: str,
-                      serializer: MutableMapping[str, Any],
+def get_token_from_ns(job: Job,
                       user_ns: MutableMapping[str, Any],
                       value: Any,
                       value_from: str) -> Token:
-    value = executor.predump(
-        compiler=compiler,
-        name=name,
-        value=(value if value is not None else
-               user_ns.get(value_from, builtins.__dict__.get(value_from))),
-        serializer=serializer)
+    value = value if value is not None else user_ns.get(value_from, builtins.__dict__.get(value_from))
     if isinstance(value, MutableSequence):
         return ListToken(
             tag=utils.get_tag(job.inputs.values()),
-            value=[Token(value=dill.dumps(v, recurse=True)) for v in value])
+            value=[Token(value=v) for v in value])
     else:
         return Token(
             tag=utils.get_tag(job.inputs.values()),
-            value=dill.dumps(value))
+            value=value)

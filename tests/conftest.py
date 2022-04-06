@@ -1,13 +1,16 @@
+import ast
 import asyncio
 import os
 import posixpath
 import tempfile
+from io import StringIO, TextIOWrapper
 from pathlib import Path
 from typing import Any, MutableMapping, MutableSequence, Union
 
 import dill
 import pytest
 from IPython.core.compilerop import CachingCompiler
+from IPython.core.displaypub import DisplayPublisher
 from streamflow.core.data import LOCAL_LOCATION
 from streamflow.core.utils import get_token_value, random_name
 from streamflow.workflow.executor import StreamFlowExecutor
@@ -15,8 +18,7 @@ from streamflow.workflow.executor import StreamFlowExecutor
 from jupyter_workflow.config.validator import validate
 from jupyter_workflow.ipython.shell import build_context
 from jupyter_workflow.streamflow import executor
-from jupyter_workflow.streamflow.executor import prepare_ns
-from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebook, JupyterNotebookTranslator
+from jupyter_workflow.streamflow.translator import JupyterCell, JupyterNotebookTranslator
 
 
 def build_cell(cell, compiler, mode) -> JupyterCell:
@@ -62,12 +64,26 @@ def get_from_file(filename):
 
 
 def get_output(outputs, name) -> Any:
-    return ([dill.loads(v) for v in outputs[name]] if isinstance(outputs[name], MutableSequence)
-            else dill.loads(outputs[name]))
+    return ([v for v in outputs[name]] if isinstance(outputs[name], MutableSequence)
+            else outputs[name])
 
 
-async def run(notebook, translator) -> MutableMapping[str, Any]:
-    workflow = await translator.translate(notebook=notebook)
+def get_stdout(outputs) -> str:
+    try:
+        return str(ast.literal_eval(outputs[executor.CELL_OUTPUT]))
+    except BaseException:
+        return outputs[executor.CELL_OUTPUT]
+
+
+def get_ipython_out(outputs):
+    try:
+        return ast.literal_eval(outputs['Out'])
+    except BaseException:
+        return outputs['Out']
+
+
+async def run(notebook, translator, user_ns) -> MutableMapping[str, Any]:
+    workflow = await translator.translate(notebook=notebook, user_ns=user_ns)
     await StreamFlowExecutor(workflow).run()
     output_tasks = {posixpath.split(name)[1]: asyncio.create_task(port.get(random_name()))
                     for name, port in workflow.get_output_ports().items()}
@@ -84,11 +100,6 @@ def set_inputs(workflow_cell: MutableMapping[str, Any],
     workflow_cell['metadata']['workflow']['step']['in'] = inputs
 
 
-def set_namespace(translator: JupyterNotebookTranslator,
-                  names: MutableMapping[str, Any]):
-    return translator.user_ns.update(names)
-
-
 def set_outputs(workflow_cell: MutableMapping[str, Any],
                 outputs: MutableSequence[Union[str, MutableMapping]]):
     workflow_cell['metadata']['workflow']['step']['out'] = outputs
@@ -103,12 +114,11 @@ def set_scatter(workflow_cell: MutableMapping[str, Any],
 def translator(context):
     return JupyterNotebookTranslator(
         context=context,
-        deployment_map={},
-        user_ns=prepare_ns({}))
+        output_directory=tempfile.mkdtemp())
 
 
 @pytest.fixture
-def workflow_cell(request):
+def workflow_cell():
     return {
         'cell_type': 'code',
         'metadata': {
@@ -117,9 +127,33 @@ def workflow_cell(request):
                     'in': [],
                     'out': []
                 },
-                'outdir': tempfile.mkdtemp(),
                 'version': 'v1.0'
             }
         },
         'source': []
     }
+
+
+class MockDisplayHook(object):
+
+    def __init__(self, displayhook):
+        self.displayhook = displayhook
+
+    def __call__(self, *args, **kwargs):
+        self.displayhook(*args, **kwargs)
+
+    def set_cell_id(self, cell_id):
+        pass
+
+
+class MockDisplayPublisher(DisplayPublisher):
+
+    def set_cell_id(self, cell_id):
+        pass
+
+
+class MockOutStream(StringIO):
+
+    def set_cell_id(self, cell_id):
+        pass
+

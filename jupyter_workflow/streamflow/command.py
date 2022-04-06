@@ -111,9 +111,18 @@ class JupyterCommand(Command):
                                    namespace: MutableMapping[Text, Any]) -> Text:
         for name, value in namespace.items():
             if name in input_serializers:
+                value = executor.predump(
+                    compiler=self.compiler,
+                    name=name,
+                    value=value,
+                    serializer=input_serializers)
                 intermediate_type = input_serializers[name].get('type', 'name')
                 if intermediate_type == 'file':
-                    namespace[name] = dill.dumps(await self._transfer_file(job, dill.loads(value)))
+                    namespace[name] = dill.dumps(await self._transfer_file(job, value))
+                else:
+                    namespace[name] = dill.dumps(value)
+            else:
+                namespace[name] = dill.dumps(value)
         try:
             return await self._serialize_to_remote_file(job, namespace)
         except BaseException:

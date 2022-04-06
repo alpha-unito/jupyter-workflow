@@ -1,15 +1,10 @@
 import ast
-from typing import Any, MutableMapping, MutableSequence, Text, cast
+from typing import MutableMapping, MutableSequence
 
-import dill
-from IPython.core.compilerop import CachingCompiler
 from streamflow.core.exception import WorkflowExecutionException
-from streamflow.core.utils import get_token_value
-from streamflow.core.workflow import Token, Workflow
+from streamflow.core.workflow import Token
 from streamflow.workflow.token import ListToken
 from streamflow.workflow.transformer import OneToOneTransformer
-
-from jupyter_workflow.streamflow import executor
 
 
 class ListJoinTransformer(OneToOneTransformer):
@@ -37,31 +32,6 @@ class MakeListTransformer(OneToOneTransformer):
 
     async def transform(self, inputs: MutableMapping[str, Token]) -> MutableMapping[str, Token]:
         return {self.get_output_name(): self._transform(next(iter(inputs.values())))}
-
-
-class PostLoadTransformer(OneToOneTransformer):
-
-    def __init__(self,
-                 name: str,
-                 workflow: Workflow,
-                 compiler: CachingCompiler,
-                 serializer: MutableMapping[Text, Any] = None):
-        super().__init__(name, workflow)
-        self.compiler: CachingCompiler = compiler
-        self.serializer: MutableMapping[Text, Any] = serializer
-
-    def _transform(self, name: str, token: Token):
-        if isinstance(token, ListToken):
-            return token.update([self._transform(name, t) for t in token.value])
-        else:
-            return token.update(executor.postload(
-                compiler=self.compiler,
-                name=name,
-                value=(dill.loads(get_token_value(token))),
-                serializer=self.serializer))
-
-    async def transform(self, inputs: MutableMapping[str, Token]) -> MutableMapping[str, Token]:
-        return {self.get_output_name(): self._transform(next(iter(inputs.keys())), next(iter(inputs.values())))}
 
 
 class OutputJoinTransformer(OneToOneTransformer):

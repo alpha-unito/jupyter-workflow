@@ -27,7 +27,7 @@ class JupyterFileToken(FileToken):
 
     async def get_paths(self, context: StreamFlowContext) -> MutableSequence[str]:
         value = get_token_value(self)
-        return [dill.loads(value)]
+        return [value]
 
     async def get_weight(self, context):
         return await _get_file_token_weight(context, await self.get_paths(context))

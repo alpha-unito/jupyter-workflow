@@ -20,13 +20,13 @@ from streamflow.workflow.token import TerminationToken
 
 from jupyter_workflow.streamflow import executor
 from jupyter_workflow.streamflow.command import JupyterCommand, JupyterCommandToken
+from jupyter_workflow.streamflow.port import ProgramContextPort
 from jupyter_workflow.streamflow.processor import JupyterFileCommandOutputProcessor, JupyterNameCommandOutputProcessor
 from jupyter_workflow.streamflow.step import (
-    JupyterFileInputInjectorStep, JupyterNameInputInjectorStep, JupyterTransferStep
+    JupyterFileInputInjectorStep, JupyterNameInputInjectorStep, JupyterNotebookStep, JupyterTransferStep
 )
 from jupyter_workflow.streamflow.transformer import (
-    ListJoinTransformer, MakeListTransformer, PostLoadTransformer,
-    OutputJoinTransformer
+    ListJoinTransformer, MakeListTransformer, OutputJoinTransformer
 )
 from jupyter_workflow.streamflow.utils import get_deploy_step
 
@@ -331,77 +331,28 @@ class JupyterNotebookTranslator(object):
 
     def __init__(self,
                  context: StreamFlowContext,
-                 deployment_map: MutableMapping[str, DeployStep],
-                 user_ns: MutableMapping[str, Any]):
-        self.compilers: MutableMapping[str, CachingCompiler] = {}
+                 output_directory: str = os.getcwd()):
         self.context: StreamFlowContext = context
-        self.deployment_map: MutableMapping[str, DeployStep] = deployment_map
+        self.deployment_map: MutableMapping[str, DeployStep] = {}
+        self.ouput_directory: str = output_directory
         self.output_ports: MutableMapping[str, Any] = {}
-        self.serializers: MutableMapping[str, MutableMapping[str, Any]] = {}
-        self.user_ns: MutableMapping[str, Any] = user_ns
-
-    def _extract_outputs(self,
-                         cell: JupyterCell,
-                         metadata: MutableMapping[str, Any],
-                         workflow: Workflow):
-        # Retreive cell output types
-        cell_outputs = {(v['name'] if isinstance(v, MutableMapping) else v):
-                            (v if isinstance(v, MutableMapping) else {
-                                'name': v, 'type': 'name', 'valueFrom': v
-                            }) for v in cell.metadata['step'].get('out', [])}
-        # Retrieve a local DeployStep
-        target = LocalTarget()
-        deploy_step = get_deploy_step(
-            deployment_map=self.deployment_map,
-            target=target,
-            workflow=workflow)
-        for name, port in {k: v for k, v in self.output_ports.items() if k in cell_outputs}.items():
-            element = cell_outputs[name]
-            serializer = (metadata['serializers'][element['serializer']]
-                          if isinstance(element['serializer'], str)
-                          else element['serializer']) if 'serializer' in element else None
-            # Create a schedule step and connect it to the local DeployStep
-            schedule_step = workflow.create_step(
-                cls=ScheduleStep,
-                name=posixpath.join(cell.metadata['cell_id'], name + "-collector", "__schedule__"),
-                connector_port=deploy_step.get_output_port(),
-                input_directory=metadata['outdir'],
-                output_directory=os.getcwd(),
-                tmp_directory=os.getcwd(),
-                target=target)
-            # Add postload transformer step
-            postload_transformer = workflow.create_step(
-                cls=PostLoadTransformer,
-                name=posixpath.join(cell.metadata['cell_id'], name + "-collector", '__postload__'),
-                compiler=cell.compiler,
-                serializer=serializer)
-            postload_transformer.add_input_port(name, port)
-            postload_transformer.add_output_port(name, workflow.create_port())
-            # Add transfer step
-            transfer_step = workflow.create_step(
-                cls=JupyterTransferStep,
-                name=posixpath.join(cell.metadata['cell_id'], name, '__transfer__'),
-                job_port=schedule_step.get_output_port())
-            transfer_step.add_input_port(name, postload_transformer.get_output_port())
-            transfer_step.add_output_port(name, workflow.create_port())
-            workflow.output_ports[name] = transfer_step.get_output_port().name
 
     def _get_source_port(self,
                          name: str,
                          workflow: Workflow) -> Port:
-        # TODO: when there is no output port registered, connect to the user_ns to retrieve the value
         return self.output_ports[name] if name in self.output_ports else workflow.create_port()
 
     def _inject_inputs(self,
                        cell: JupyterCell,
+                       context_port: ProgramContextPort,
                        workflow: Workflow):
         step = workflow.steps[posixpath.join(cell.metadata['cell_id'], '__schedule__')]
         input_ports = {k: v for k, v in step.get_input_ports().items() if k != "__connector__"}
         # Retreive cell input types
         cell_inputs = {(v['name'] if isinstance(v, MutableMapping) else v):
-                       (v if isinstance(v, MutableMapping) else {
-                           'name': v, 'type': 'name', 'valueFrom': v
-                       }) for v in cell.metadata['step'].get('in', [])}
+                           (v if isinstance(v, MutableMapping) else {
+                               'name': v, 'type': 'name', 'valueFrom': v
+                           }) for v in cell.metadata['step'].get('in', [])}
         for input_name in input_ports:
             if input_name not in cell_inputs:
                 cell_inputs[input_name] = {'name': input_name, 'type': 'name', 'valueFrom': input_name}
@@ -421,7 +372,7 @@ class JupyterNotebookTranslator(object):
             # Create a schedule step and connect it to the local DeployStep
             schedule_step = workflow.create_step(
                 cls=ScheduleStep,
-                name=posixpath.join(step.name, port_name + "-injector", "__schedule__"),
+                name=posixpath.join(cell.metadata['cell_id'], port_name + "-injector", "__schedule__"),
                 connector_port=deploy_step.get_output_port(),
                 input_directory=os.getcwd(),
                 output_directory=os.getcwd(),
@@ -432,19 +383,17 @@ class JupyterNotebookTranslator(object):
             if cell_inputs[port_name]['type'] == 'name':
                 injector_step = workflow.create_step(
                     cls=JupyterNameInputInjectorStep,
-                    name=posixpath.join(step.name, port_name + "-injector"),
+                    name=posixpath.join(cell.metadata['cell_id'], port_name + "-injector"),
+                    context_port=context_port,
                     job_port=schedule_step.get_output_port(),
-                    compiler=cell.compiler,
-                    user_ns=self.user_ns,
-                    serializer=cell_inputs[port_name].get('serializer'),
                     value=cell_inputs[port_name].get('value'),
                     value_from=cell_inputs[port_name].get('valueFrom'))
             elif cell_inputs[port_name]['type'] == 'file':
                 injector_step = workflow.create_step(
                     cls=JupyterFileInputInjectorStep,
                     name=posixpath.join(step.name, port_name + "-injector"),
+                    context_port=context_port,
                     job_port=schedule_step.get_output_port(),
-                    user_ns=self.user_ns,
                     value=cell_inputs[port_name].get('value'),
                     value_from=cell_inputs[port_name].get('valueFrom'))
             # If there is an injector step, create an input port and inject values
@@ -497,6 +446,10 @@ class JupyterNotebookTranslator(object):
             if is_removable[i]:
                 del workflow.ports[gather_steps[i].get_output_port().name]
                 del workflow.steps[gather_steps[i].name]
+                for port_name, port in list(self.output_ports.items()):
+                    if port.name == join_steps[i].get_output_port().name:
+                        del self.output_ports[port_name]
+                        break
                 del workflow.ports[join_steps[i].get_output_port().name]
                 del workflow.steps[join_steps[i].name]
             del workflow.ports[split_steps[i].get_output_port().name]
@@ -504,11 +457,31 @@ class JupyterNotebookTranslator(object):
             del workflow.ports[scatter_steps[i].get_output_port().name]
             del workflow.steps[scatter_steps[i].name]
 
-    async def _translate_cell(self,
-                              workflow: Workflow,
-                              cell: JupyterCell,
-                              metadata: Optional[MutableMapping[str, Any]],
-                              autoawait: bool = False) -> Step:
+    async def _translate_jupyter_cell(self,
+                                      workflow: Workflow,
+                                      cell: JupyterCell,
+                                      autoawait: bool,
+                                      context_port: ProgramContextPort):
+        # Create a JupyterNotebookStep to execute the cell on the local context
+        step = workflow.create_step(
+            cls=JupyterNotebookStep,
+            name=cell.metadata['cell_id'],
+            ast_nodes=cell.code,
+            autoawait=autoawait,
+            compiler=cell.compiler,
+            context_port=context_port)
+        # Use any active output port as input
+        for port_name, port in self.output_ports.items():
+            # Propagate output to JupyterNotebookStep
+            step.add_input_port(port_name, port)
+        # Return the new context port
+        return step.get_output_context_port()
+
+    async def _translate_streamflow_cell(self,
+                                         workflow: Workflow,
+                                         cell: JupyterCell,
+                                         metadata: Optional[MutableMapping[str, Any]],
+                                         autoawait: bool = False) -> Step:
         # Build execution target
         target = metadata.get('target')
         if target is not None:
@@ -597,7 +570,6 @@ class JupyterNotebookTranslator(object):
                     step.output_processors[name] = JupyterNameCommandOutputProcessor(
                         name=name,
                         workflow=workflow,
-                        compiler=cell.compiler,
                         value_from=name)
                     # Add command token
                     input_tokens[name] = JupyterCommandToken(
@@ -632,15 +604,6 @@ class JupyterNotebookTranslator(object):
             schedule_step.add_input_port(port_name, port)
         # Process file inputs to transfer them
         for name, element in file_inputs.items():
-            # Add postload transformer step
-            postload_transformer = workflow.create_step(
-                cls=PostLoadTransformer,
-                name=posixpath.join(metadata['cell_id'], name, '__postload__'),
-                compiler=self.compilers.get(name),
-                serializer=self.serializers.get(name))
-            postload_transformer.add_input_port(name, input_ports[name])
-            input_ports[name] = workflow.create_port()
-            postload_transformer.add_output_port(name, input_ports[name])
             # Add transfer step
             transfer_step = workflow.create_step(
                 cls=JupyterTransferStep,
@@ -668,12 +631,10 @@ class JupyterNotebookTranslator(object):
                     name = element.get('name') or element.get('valueFrom')
                     self.output_ports[name] = workflow.create_port()
                     step.add_output_port(name, self.output_ports[name])
-                    # Store cell compiler
-                    self.compilers[name] = cell.compiler
                     # Get serializer if present
-                    self.serializers[name] = (metadata['serializers'][element['serializer']]
-                                              if isinstance(element['serializer'], str)
-                                              else element['serializer']) if 'serializer' in element else None
+                    serializer = (metadata['serializers'][element['serializer']]
+                                  if isinstance(element['serializer'], str)
+                                  else element['serializer']) if 'serializer' in element else None
                     # Process port type
                     element_type = element['type']
                     # If type is equal to `file`, it refers to a file path in the remote resource
@@ -690,8 +651,6 @@ class JupyterNotebookTranslator(object):
                         step.output_processors[name] = JupyterNameCommandOutputProcessor(
                             name=name,
                             workflow=workflow,
-                            compiler=cell.compiler,
-                            serializer=self.serializers[name],
                             value=element.get('value'),
                             value_from=element.get('valueFrom', name))
                     # If type is equal to `control`, simply add an empty dependency
@@ -704,7 +663,7 @@ class JupyterNotebookTranslator(object):
                     output_tokens[name] = JupyterCommandToken(
                         name=name,
                         token_type=element_type,
-                        serializer=self.serializers[name])
+                        serializer=serializer)
                     # Add gather step if present
                     if scatter_inputs:
                         # Add gather step
@@ -718,29 +677,42 @@ class JupyterNotebookTranslator(object):
                         transformer_step = workflow.create_step(
                             cls=ListJoinTransformer,
                             name=posixpath.join(metadata['cell_id'], name, '__join__'))
-                        transformer_step.add_input_port(executor.CELL_OUTPUT, self.output_ports[name])
-                        transformer_step.add_output_port(executor.CELL_OUTPUT, workflow.create_port())
+                        transformer_step.add_input_port(name, self.output_ports[name])
+                        transformer_step.add_output_port(name, workflow.create_port())
                         self.output_ports[name] = transformer_step.get_output_port()
-        # Add output log port
+        # Add output log ports
         output_log_port = workflow.create_port()
         step.add_output_port(executor.CELL_OUTPUT, output_log_port)
+        if 'Out' not in step.output_ports:
+            ipython_out_port = workflow.create_port()
+            step.add_output_port(
+                name='Out',
+                port=ipython_out_port,
+                output_processor=JupyterNameCommandOutputProcessor(name='Out', workflow=workflow, value_from='Out'))
+        else:
+            ipython_out_port = step.get_output_port('Out')
+        log_ports = {executor.CELL_OUTPUT: output_log_port,
+                     'Out': ipython_out_port}
         if scatter_inputs:
-            # Add gather step
-            gather_output_port = _add_gather_step(
-                cell_id=metadata['cell_id'],
-                name=executor.CELL_OUTPUT,
-                port=step.get_output_port(executor.CELL_OUTPUT),
-                depth=len(scatter_inputs) if scatter_method == 'cartesian' else 1,
-                workflow=workflow)
-            # Add string join transformer
-            transformer_step = workflow.create_step(
-                cls=OutputJoinTransformer,
-                name=posixpath.join(metadata['cell_id'], executor.CELL_OUTPUT, '__join__'))
-            transformer_step.add_input_port(executor.CELL_OUTPUT, gather_output_port)
-            transformer_step.add_output_port(executor.CELL_OUTPUT, workflow.create_port())
-            output_log_port = transformer_step.get_output_port()
+            for log_port_name, log_port in log_ports.items():
+                # Add gather step
+                gather_output_port = _add_gather_step(
+                    cell_id=metadata['cell_id'],
+                    name=log_port_name,
+                    port=step.get_output_port(log_port_name),
+                    depth=len(scatter_inputs) if scatter_method == 'cartesian' else 1,
+                    workflow=workflow)
+                # Add string join transformer
+                transformer_step = workflow.create_step(
+                    cls=OutputJoinTransformer,
+                    name=posixpath.join(metadata['cell_id'], log_port_name, '__join__'))
+                transformer_step.add_input_port(log_port_name, gather_output_port)
+                transformer_step.add_output_port(log_port_name, workflow.create_port())
+                log_ports[log_port_name] = transformer_step.get_output_port()
         output_log_name = posixpath.join(step.name, executor.CELL_OUTPUT)
-        workflow.output_ports[output_log_name] = output_log_port.name
+        workflow.output_ports[output_log_name] = log_ports[executor.CELL_OUTPUT].name
+        ipython_out_name = posixpath.join(step.name, 'Out')
+        workflow.output_ports[ipython_out_name] = log_ports['Out'].name
         # Create the command to be executed remotely
         step.command = JupyterCommand(
             step=step,
@@ -752,27 +724,40 @@ class JupyterNotebookTranslator(object):
             autoawait=autoawait)
         return step
 
-    async def translate(self, notebook: JupyterNotebook) -> Workflow:
+    async def translate(self,
+                        notebook: JupyterNotebook,
+                        user_ns: MutableMapping[str, Any]) -> Workflow:
         # Create workflow
         workflow = Workflow(self.context)
+        # Add program context port with initial program context
+        context_port = workflow.create_port(cls=ProgramContextPort)
+        context_port.put_context(user_ns)
         # Parse single cells independently to derive workflow steps
         for cell in notebook.cells:
-            await self._translate_cell(
-                workflow=workflow,
-                cell=cell,
-                metadata={**notebook.metadata, **cell.metadata},
-                autoawait=notebook.autoawait)
-            # Inject initial inputs
-            self._inject_inputs(
-                cell=cell,
-                workflow=workflow)
-        if notebook.cells:
-            # Extract outputs
-            self._extract_outputs(
-                cell=notebook.cells[-1],
-                metadata={**notebook.metadata, **notebook.cells[-1].metadata},
-                workflow=workflow)
+            if 'step' in cell.metadata:
+                await self._translate_streamflow_cell(
+                    workflow=workflow,
+                    cell=cell,
+                    metadata={**notebook.metadata, **cell.metadata},
+                    autoawait=notebook.autoawait)
+                # Inject inputs from program context
+                self._inject_inputs(
+                    cell=cell,
+                    context_port=context_port,
+                    workflow=workflow)
+            else:
+                context_port = await self._translate_jupyter_cell(
+                    workflow=workflow,
+                    cell=cell,
+                    autoawait=notebook.autoawait,
+                    context_port=context_port)
+                # Reset output poirts dictionary
+                self.output_ports = {}
         # Apply rewrite rules
         self._optimize_scatter(workflow)
+        # Set workflow outputs
+        for port_name, port in self.output_ports.items():
+            step_name = next(iter(next(iter(s.name for s in port.get_input_steps())).split('/')))
+            workflow.output_ports[posixpath.join(step_name, port_name)] = port.name
         # Return the final workflow object
         return workflow

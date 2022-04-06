@@ -6,7 +6,7 @@ import streamflow
 import traitlets
 from ipykernel.ipkernel import IPythonKernel
 from ipykernel.jsonutil import json_clean
-from ipython_genutils.py3compat import PY3, safe_unicode
+from ipython_genutils.py3compat import safe_unicode
 from jupyter_client.session import extract_header
 from tornado import gen
 
@@ -34,12 +34,66 @@ class WorkflowIPythonKernel(IPythonKernel):
             'name': 'ipython',
             'version': sys.version_info[0]
         },
-        'pygments_lexer': 'ipython%d' % (3 if PY3 else 2),
+        'pygments_lexer': 'ipython%d' % 3,
         'nbconvert_exporter': 'python',
         'file_extension': '.py'
     }
 
-    msg_types = IPythonKernel.msg_types + ['workflow_request']
+    msg_types = IPythonKernel.msg_types + ['workflow_request', 'auto_inputs_request']
+
+    @gen.coroutine
+    def auto_inputs_request(self, stream, ident, parent):
+        try:
+            content = parent['content']
+            code = content['code']
+        except BaseException as e:
+            self.log.error(e)
+            self.log.error("%s", parent)
+            return
+        reply_content = yield gen.maybe_future(self.do_auto_inputs_request(code))
+        # Send the reply.
+        reply_content = json_clean(reply_content)
+        reply_msg = self.session.send(stream, 'auto_inputs_reply', reply_content, parent, metadata={}, ident=ident)
+        self.log.debug("%s", reply_msg)
+
+    @gen.coroutine
+    def do_auto_inputs_request(self, code):
+        shell = self.shell
+        reply_content = {}
+        if (
+                _asyncio_runner
+                and shell.loop_runner is _asyncio_runner
+                and asyncio.get_event_loop().is_running()
+        ):
+            coro = shell.retrieve_inputs(code)
+            coro_future = asyncio.ensure_future(coro)
+
+            with self._cancel_on_sigint(coro_future):
+                res = yield coro_future
+        else:
+            coro = shell.retrieve_inputs(code)
+            if shell.trio_runner:
+                runner = shell.trio_runner
+            else:
+                runner = shell.loop_runner
+            res = runner(coro)
+        if res.error_before_exec is not None:
+            err = res.error_before_exec
+        else:
+            err = res.error_in_exec
+        if res.success:
+            reply_content['inputs'] = res.inputs
+            reply_content['status'] = 'ok'
+        else:
+            reply_content['status'] = 'error'
+            # noinspection PyProtectedMember
+            reply_content.update({
+                'traceback': shell._last_traceback or [],
+                'ename': str(type(err).__name__),
+                'evalue': safe_unicode(err),
+            })
+        shell.payload_manager.clear_payload()
+        return reply_content
 
     def init_metadata(self, parent):
         # Call parent functionse
@@ -71,8 +125,8 @@ class WorkflowIPythonKernel(IPythonKernel):
         try:
             content = parent['content']
             notebook = content['notebook']
-        except:
-            self.log.error("Got bad msg: ")
+        except BaseException as e:
+            self.log.error(e)
             self.log.error("%s", parent)
             return
         metadata = self.init_metadata(parent)
@@ -94,9 +148,9 @@ class WorkflowIPythonKernel(IPythonKernel):
         shell = self.shell
         reply_content = {}
         if (
-            _asyncio_runner
-            and shell.loop_runner is _asyncio_runner
-            and asyncio.get_event_loop().is_running()
+                _asyncio_runner
+                and shell.loop_runner is _asyncio_runner
+                and asyncio.get_event_loop().is_running()
         ):
             coro = shell.run_workflow(notebook)
             coro_future = asyncio.ensure_future(coro)
@@ -113,14 +167,25 @@ class WorkflowIPythonKernel(IPythonKernel):
             else:
                 runner = shell.loop_runner
             res = runner(coro)
-        # Send outputs to cell streams
-        for cell_name, content in res.result.items():
+        # Send stdout contents to cell streams
+        for cell_name, content in res.stdout.items():
             self.session.send(
                 self.iopub_thread,
                 'stream',
-                content={'name': cell_name, 'text': content},
+                content={'name': 'stdout', 'metadata': {'cell_id': cell_name}, 'text': content},
                 parent=extract_header(parent),
                 ident=ident)
+        # Send ipython out contents to cell streams
+        for cell_name, content in res.out.items():
+            self.session.send(
+                self.iopub_thread,
+                'execute_result',
+                content={
+                    'execution_count': 1,
+                    'data': {'text/plain': repr(content)},
+                    'metadata': {'cell_id': cell_name}},
+                parent=extract_header(parent),
+                ident=b'execute_result')
         # Send reply message
         if res.error_before_exec is not None:
             err = res.error_before_exec
