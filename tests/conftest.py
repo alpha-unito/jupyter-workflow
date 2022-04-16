@@ -3,11 +3,10 @@ import asyncio
 import os
 import posixpath
 import tempfile
-from io import StringIO, TextIOWrapper
+from io import StringIO
 from pathlib import Path
 from typing import Any, MutableMapping, MutableSequence, Union
 
-import dill
 import pytest
 from IPython.core.compilerop import CachingCompiler
 from IPython.core.displaypub import DisplayPublisher

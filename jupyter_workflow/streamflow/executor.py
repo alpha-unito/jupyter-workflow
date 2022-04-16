@@ -10,9 +10,9 @@ import os
 import shutil
 import sys
 import traceback
-from contextlib import contextmanager, redirect_stdout, redirect_stderr
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, MutableMapping, MutableSequence, Tuple
+from typing import Any, Dict, List, MutableMapping, Tuple
 
 if sys.version_info > (3, 8):
     from ast import Module
@@ -27,18 +27,10 @@ CELL_OUTPUT = '__JF_CELL_OUTPUT__'
 CELL_STATUS = '__JF_CELL_STATUS__'
 CELL_LOCAL_NS = '__JF_CELL_LOCAL_NS__'
 
-# Import dill or install it
 try:
-    import dill
+    import cloudpickle as pickle
 except ImportError:
-    import subprocess
-
-    subprocess.call(
-        [sys.executable, "-m", "pip", "install", "dill"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT
-    )
-    import dill
+    import pickle
 
 # Define args parser
 parser = argparse.ArgumentParser()
@@ -55,7 +47,7 @@ parser.add_argument('--workdir', nargs='?')
 def _deserialize(path, default=None):
     if path is not None:
         with open(path, "rb") as f:
-            return dill.load(f)
+            return pickle.load(f)
     else:
         return default
 
@@ -71,7 +63,7 @@ def _serialize(compiler, namespace, args):
     else:
         namespace = {k: v for k, v in namespace.items() if k in args.output_name}
     with NamedTemporaryFile(delete=False) as f:
-        dill.dump(namespace, f, recurse=True)
+        pickle.dump(namespace, f)
         return f.name
 
 

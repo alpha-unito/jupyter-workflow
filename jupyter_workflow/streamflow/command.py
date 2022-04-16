@@ -1,19 +1,15 @@
-import abc
 import ast
 import asyncio
 import json
 import os
-import pickle
 import tempfile
 from asyncio.subprocess import STDOUT
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, List, MutableMapping, Optional, Tuple
 
-import dill
+import cloudpickle as pickle
 from IPython.core.compilerop import CachingCompiler
-from dill import register
 from streamflow.core.data import LOCAL_LOCATION
-from streamflow.core.exception import WorkflowExecutionException
 from streamflow.core.utils import get_path_processor, get_token_value, random_name
 from streamflow.core.workflow import Command, CommandOutput, Job, Status, Step
 from streamflow.data import remotepath
@@ -21,12 +17,6 @@ from streamflow.log_handler import logger
 from typing_extensions import Text
 
 from jupyter_workflow.streamflow import executor
-
-
-@register(abc.ABCMeta)
-def save_abc(pickler, obj):
-    # https://github.com/uqfoundation/dill/issues/332
-    pickle._Pickler.save_type(pickler, obj)
 
 
 class JupyterCommandOutput(CommandOutput):
@@ -91,7 +81,7 @@ class JupyterCommand(Command):
                     dst_locations=[LOCAL_LOCATION],
                     dst_path=dst_path)
                 with open(dst_path, 'rb') as f:
-                    namespace = dill.load(f)
+                    namespace = pickle.load(f)
                 for name, value in namespace.items():
                     if name in output_serializers:
                         intermediate_type = output_serializers[name].get('type', 'name')
@@ -128,19 +118,12 @@ class JupyterCommand(Command):
                 intermediate_type = input_serializers[name].get('type', 'name')
                 if intermediate_type == 'file':
                     namespace[name] = await self._transfer_file(job, value)
-        try:
-            return await self._serialize_to_remote_file(job, namespace, byref=False, recurse=True)
-        except BaseException as e:
-            logger.error(e)
-            for k, v in namespace.items():
-                if not dill.pickles(v, safe=True, byref=False, recurse=True):
-                    raise WorkflowExecutionException("Name {name} is not serializable".format(name=k))
-            raise
+        return await self._serialize_to_remote_file(job, namespace, byref=False, recurse=True)
 
     async def _serialize_to_remote_file(self, job: Job, element: Any, byref=True, recurse=False) -> Text:
         src_path = tempfile.mktemp()
         with open(src_path, "wb") as f:
-            dill.dump(element, f, byref=byref, recurse=recurse)
+            pickle.dump(element, f)
             f.flush()
         self.step.workflow.context.data_manager.register_path(
             deployment=LOCAL_LOCATION,

@@ -31,7 +31,7 @@ setup(
     url='https://github.com/alpha-unito/jupyter-workflow',
     download_url="".join(['https://github.com/alpha-unito/jupyter-workflow/releases']),
     install_requires=[
-        "dill",
+        "cloudpickle",
         "IPython",
         "ipython_genutils",
         "ipykernel",
