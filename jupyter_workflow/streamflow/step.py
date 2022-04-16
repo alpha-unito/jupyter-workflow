@@ -228,6 +228,8 @@ class JupyterTransferStep(TransferStep):
             dst_deployment=dst_connector.deployment_name)
         src_connector = self.workflow.context.deployment_manager.get_connector(source_location.deployment)
         dst_path = dst_path_processor.join(job.input_directory, source_location.relpath)
+        logger.error(source_location.path)
+        logger.error(dst_path)
         await self.workflow.context.data_manager.transfer_data(
             src_deployment=src_connector.deployment_name,
             src_locations=[source_location.location],

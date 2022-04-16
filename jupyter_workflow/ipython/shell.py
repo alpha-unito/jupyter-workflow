@@ -5,7 +5,7 @@ import posixpath
 import sys
 from contextvars import ContextVar
 from io import FileIO, TextIOWrapper
-from typing import Any, List, MutableMapping, Tuple
+from typing import Any, List, MutableMapping, Tuple, cast
 
 import IPython
 import streamflow.log_handler
@@ -29,6 +29,7 @@ from traitlets import Type, observe
 from typing_extensions import Text
 
 from jupyter_workflow.ipython.displayhook import StreamFlowDisplayPublisher, StreamFlowShellDisplayHook
+from jupyter_workflow.ipython.iostream import WorkflowOutStream
 from jupyter_workflow.streamflow import executor
 from jupyter_workflow.streamflow.translator import (
     DependenciesRetriever, JupyterCell, JupyterNotebook,
@@ -178,6 +179,20 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         asyncio.ensure_future(coro)
         # Call parent function
         super()._update_exit_now(change=change)
+
+    def delete_parent(self, parent):
+        self.displayhook.delete_parent(parent)
+        self.display_pub.delete_parent(parent)
+        if hasattr(self, "_data_pub"):
+            self.data_pub.set_parent(parent)
+        try:
+            cast(WorkflowOutStream, sys.stdout).delete_parent(parent)
+        except AttributeError:
+            pass
+        try:
+            cast(WorkflowOutStream, sys.stderr).delete_parent(parent)
+        except AttributeError:
+            pass
 
     async def retrieve_inputs(self, code):
         result = ExecutionResult(None)

@@ -26,7 +26,10 @@ define([
                     console.log(i18n.msg._("Can't execute cell since kernel is not set."));
                     return;
                 }
-
+                if (this.element.hasClass("running")) {
+                    console.log(i18n.msg.sprintf("Cell %s is already running.", this.cell_id));
+                    return;
+                }
                 if (stop_on_error === undefined) {
                     if (this.metadata !== undefined &&
                         this.metadata.tags !== undefined) {
@@ -35,7 +38,6 @@ define([
                         stop_on_error = true;
                     }
                 }
-
                 this.clear_output(false, true);
                 const old_msg_id = this.last_msg_id;
                 if (old_msg_id) {
@@ -51,13 +53,11 @@ define([
                 this.set_input_prompt('*');
                 this.element.addClass("running");
                 const callbacks = this.get_callbacks();
-
                 let kernel_options = {
                     silent: false,
                     store_history: true,
                     stop_on_error: stop_on_error
                 }
-
                 if (this.metadata !== undefined && this.metadata.hasOwnProperty('workflow')) {
                     if (this.notebook.metadata !== undefined && this.notebook.metadata.hasOwnProperty('workflow')) {
                         kernel_options.workflow = {
@@ -68,22 +68,40 @@ define([
                         kernel_options.workflow = JSON.parse(JSON.stringify(this.metadata['workflow']));
                     }
                     kernel_options.workflow['cell_id'] = this.cell_id;
+                } else {
+                    kernel_options.workflow = {cell_id: this.cell_id, version: 'v1.0'};
                 }
-
-                this.last_msg_id = this.kernel.execute(this.get_text(), callbacks, kernel_options);
-
+                const background = this.metadata !== undefined &&
+                    this.metadata.hasOwnProperty('workflow') &&
+                    this.metadata['workflow'].hasOwnProperty('step') &&
+                    this.metadata['workflow']['step']['background'];
+                if (background) {
+                    let content = {
+                        code : this.get_text(),
+                        silent : true,
+                        store_history : false,
+                        user_expressions : {},
+                        allow_stdin : false
+                    };
+                    if (callbacks.input !== undefined) {
+                        content.allow_stdin = true;
+                    }
+                    $.extend(true, content, kernel_options)
+                    this.kernel.events.trigger('background_execution_request.Kernel', {kernel: this, content: content});
+                    return this.kernel.send_shell_message("background_execute_request", content, callbacks);
+                } else {
+                    this.last_msg_id = this.kernel.execute(this.get_text(), callbacks, kernel_options);
+                }
                 CodeCell.msg_cells[this.last_msg_id] = this;
                 this.render();
                 this.events.trigger('execute.CodeCell', {cell: this});
                 const that = this;
-
                 function handleFinished(evt, data) {
                     if (that.kernel.id === data.kernel.id && that.last_msg_id === data.msg_id) {
                         that.events.trigger('finished_execute.CodeCell', {cell: that});
                         that.events.off('finished_iopub.Kernel', handleFinished);
                     }
                 }
-
                 this.events.on('finished_iopub.Kernel', handleFinished);
             };
 
@@ -145,6 +163,16 @@ define([
                 button.find('.fa').removeClass('fa-eye').addClass('fa-eye-slash');
             }
 
+            CodeCell.prototype._handle_execute_reply = function (msg) {
+                if (msg.content.status === 'background') {
+                    this.set_input_prompt("b");
+                } else {
+                    this.set_input_prompt(msg.content.execution_count);
+                    this.element.removeClass("running");
+                    this.events.trigger('set_dirty.Notebook', {value: true});
+                }
+            };
+
             let _CallbackProxy = function (cells) {
                 this._shell = [];
                 this._iopub = [];
@@ -199,16 +227,13 @@ define([
                     console.log(i18n.msg._("Can't execute cell since kernel is not set."));
                     return;
                 }
-
                 this.clear_output(false, true);
-
                 let notebook = {
                     cells: []
                 };
                 if (this.metadata !== undefined && this.metadata.hasOwnProperty('workflow')) {
                     notebook.metadata = this.metadata['workflow'];
                 }
-
                 const that = this;
                 const cells = [...Array(this.ncells()).keys()].map(function (index) {
                     return that.get_cell(index);
@@ -218,9 +243,7 @@ define([
                 if (cells.length === 0) {
                     return;
                 }
-
                 let callbacks = new _CallbackProxy(cells);
-
                 cells.forEach(function (cell) {
                     cell.clear_output(false, true);
                     const old_msg_id = cell.last_msg_id;
@@ -229,17 +252,13 @@ define([
                         delete CodeCell.msg_cells[old_msg_id];
                         cell.last_msg_id = null;
                     }
-
                     if (cell.get_text().trim().length === 0) {
                         cell.set_input_prompt(null);
                         return;
                     }
-
                     callbacks.add_callbacks(cell.get_callbacks());
-
                     cell.set_input_prompt('*');
                     cell.element.addClass("running");
-
                     let cell_object = {code: cell.get_text()}
                     if (cell.metadata !== undefined && cell.metadata.hasOwnProperty('workflow')) {
                         cell_object.metadata = JSON.parse(JSON.stringify(cell.metadata['workflow']));
@@ -249,12 +268,10 @@ define([
                     cell_object.metadata['cell_id'] = cell.cell_id;
                     notebook.cells.push(cell_object);
                 });
-
                 var content = {
                     notebook: notebook
                 };
                 this.kernel.events.trigger('workflow_request.Kernel', {kernel: this, content: content});
-
                 return this.kernel.send_shell_message("workflow_request", content, callbacks);
             };
 
@@ -910,6 +927,7 @@ define([
                 const interpreter = ('interpreter' in options.md) ? options.md['interpreter'] : '';
                 const serializers = ('serializers' in options.notebook_md) ? options.notebook_md['serializers'] : [];
                 const step = ('step' in options.md) ? options.md['step'] : {};
+                const background = ('background' in step) ? step['background'] : false;
                 const inputs = ('in' in step) ? step['in'] : [];
                 const outputs = ('out' in step) ? step['out'] : [];
                 const autoin = ('autoin' in step) ? step['autoin'] : true;
@@ -975,6 +993,33 @@ define([
                             .append($('<fieldset/>')
                                 .append(error_div)
                                 .append($('<br/>')))
+                            .append($('<fieldset/>')
+                                .css('margin-bottom', '20px')
+                                .append($('<legend/>')
+                                    .css('margin-bottom', '10px')
+                                    .text(i18n.msg._('Configuration')))
+                                .append($('<div/>')
+                                    .addClass('checkbox-inline')
+                                    .css('margin-top', '5px')
+                                    .append($('<label/>')
+                                        .append($('<input/>')
+                                            .addClass('step-background')
+                                            .attr('type', 'checkbox')
+                                            .css('margin-top', '0px')
+                                            .prop('checked', background)
+                                            .prop('disabled', outputs.length > 0))
+                                        .append($('<span/>')
+                                            .text(i18n.msg._('Execute in background')))
+                                    .append($('<a/>')
+                                        .attr('href', '#')
+                                        .attr('data-toggle', 'tooltip')
+                                        .attr('title', i18n.msg._(
+                                            'A cell without output ports can run in background when the noteboook ' +
+                                            'is in interactive mode. Note that this has no effect in workflow mode'))
+                                        .append($('<i/>')
+                                            .addClass('fa-question-circle')
+                                            .addClass('fa')
+                                            .css('margin-left', '5px'))))))
                             .append($('<fieldset/>')
                                 .css('margin-bottom', '20px')
                                 .append($('<div/>')
@@ -1176,9 +1221,10 @@ define([
                                 error_div.focus();
                             } else {
                                 error_div.text('');
-                                $('.out-container').append(get_dep_html('in', name, serializers));
+                                $('.out-container').append(get_dep_html('out', name, serializers));
                                 $(event.currentTarget).parent().prev().val('')
                             }
+                            $('.step-background').prop('disabled', true).prop('checked', false);
                         }
                     })
                     .on('click', '.btn-delete', function (event) {
@@ -1197,14 +1243,18 @@ define([
                                         const el = $(event.currentTarget).parent().parent().parent();
                                         const name = el.find('.element-name').val();
                                         const type = el.find('.element-type').val();
+                                        el.remove();
                                         if (type === 'in') {
                                             $('.auto-inputs-container').find('.label-success').each(function () {
                                                 if (name === $(this).text()) {
                                                     $(this).removeClass('label-success').addClass('label-info');
                                                 }
                                             });
+                                        } else if (type === 'out') {
+                                            if ($('.out-container').children().length === 0) {
+                                                $('.step-background').prop('disabled', false);
+                                            }
                                         }
-                                        el.remove();
                                     }
                                 }
                             }
@@ -1288,6 +1338,12 @@ define([
                                     new_md['interpreter'] = interpreter;
                                 }
                                 new_md['step'] = {};
+                                const background = dialogform.find('.step-background')
+                                if (!background.prop('disabled')) {
+                                    new_md['step']['background'] = dialogform.find('.step-background').prop('checked');
+                                } else {
+                                    new_md['step']['background'] = false;
+                                }
                                 new_md['step']['in'] = [];
                                 dialogform.find('.in-container').children().each(function () {
                                     const name = $(this).find('.element-name').val();

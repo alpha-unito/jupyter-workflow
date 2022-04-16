@@ -112,15 +112,12 @@ def _get_scatter_inputs(scatter_schema: Optional[MutableMapping[str, Any]]) -> S
 
 def _process_scatter_entries(entries: MutableSequence[Union[str, MutableMapping[str, Any]]],
                              combinator: Combinator,
-                             combinator_step: CombinatorStep,
                              input_ports: MutableMapping[str, Port],
                              scatter_method: str,
                              workflow: Workflow) -> None:
     for entry in entries:
         if isinstance(entry, str):
-            combinator_step.add_input_port(entry, input_ports[entry])
             input_ports[entry] = workflow.create_port()
-            combinator_step.add_output_port(entry, input_ports[entry])
             combinator.add_item(entry)
         else:
             if scatter_method == 'dotproduct':
@@ -134,7 +131,6 @@ def _process_scatter_entries(entries: MutableSequence[Union[str, MutableMapping[
             _process_scatter_entries(
                 entries=entry['items'],
                 combinator=inner_combinator,
-                combinator_step=combinator_step,
                 input_ports=input_ports,
                 scatter_method=scatter_method,
                 workflow=workflow)
@@ -363,9 +359,13 @@ class JupyterNotebookTranslator(object):
             target=target,
             workflow=workflow)
         for port_name, port in input_ports.items():
-            # Chekc if there is a scatter step and, if yes, inject input into its port
+            # Check if there is a scatter step and, if yes, inject input into its port
             if split_step := workflow.steps.get(posixpath.join(cell.metadata['cell_id'], port_name, '__split__')):
                 port = split_step.get_input_port(port_name)
+            # Otherwise, check for a combinator step and, if yes, inject input into its port
+            elif combinator_step := workflow.steps.get(
+                    posixpath.join(cell.metadata['cell_id'], '__combinator__')):
+                port = combinator_step.get_input_port(port_name)
             # If the port as at least an input step, skip it
             if port.get_input_steps():
                 continue
@@ -576,29 +576,47 @@ class JupyterNotebookTranslator(object):
                         name=name,
                         token_type='name')
         # Add scatter combinator if present
+        scatter_combinator = None
         if len(scatter_inputs) > 1:
             if scatter_method == 'dotproduct':
-                combinator = DotProductCombinator(
+                scatter_combinator = DotProductCombinator(
                     workflow=workflow,
                     name='scatter-combinator')
             else:
-                combinator = CartesianProductCombinator(
+                scatter_combinator = CartesianProductCombinator(
                     workflow=workflow,
                     name='scatter-combinator')
-            combinator_step = workflow.create_step(
-                cls=CombinatorStep,
-                name=posixpath.join(metadata['cell_id'], '__combinator__'),
-                combinator=combinator)
             _process_scatter_entries(
                 entries=metadata['step']['scatter']['items'],
-                combinator=combinator,
-                combinator_step=combinator_step,
+                combinator=scatter_combinator,
                 input_ports=input_ports,
                 scatter_method=scatter_method,
                 workflow=workflow)
-            # Propagate input ports
-            for input_name in combinator_step.input_ports:
-                input_ports[input_name] = combinator_step.get_output_port(input_name)
+        # If there are both scatter and non-scatter inputs
+        if len(scatter_inputs) < len(input_ports):
+            dot_product_combinator = DotProductCombinator(
+                workflow=workflow,
+                name=metadata['cell_id'] + "-dot-product-combinator")
+            if scatter_combinator:
+                dot_product_combinator.add_combinator(
+                    scatter_combinator, scatter_combinator.get_items(recursive=True))
+            else:
+                for name in scatter_inputs:
+                    dot_product_combinator.add_item(name)
+            for port_name in input_ports:
+                if port_name not in scatter_inputs:
+                    dot_product_combinator.add_item(port_name)
+            scatter_combinator = dot_product_combinator
+        # If a scatter combinator has been defined, create a combinator step and add all input ports to it
+        if scatter_combinator:
+            combinator_step = workflow.create_step(
+                cls=CombinatorStep,
+                name=posixpath.join(metadata['cell_id'], '__combinator__'),
+                combinator=scatter_combinator)
+            for port_name, port in input_ports.items():
+                combinator_step.add_input_port(port_name, port)
+                combinator_step.add_output_port(port_name, workflow.create_port())
+                input_ports[port_name] = combinator_step.get_output_port(port_name)
         # Add input ports to the schedule step
         for port_name, port in input_ports.items():
             schedule_step.add_input_port(port_name, port)

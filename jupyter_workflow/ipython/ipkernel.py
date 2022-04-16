@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import time
+from functools import partial
 
 import streamflow
 import traitlets
@@ -8,7 +9,6 @@ from ipykernel.ipkernel import IPythonKernel
 from ipykernel.jsonutil import json_clean
 from ipython_genutils.py3compat import safe_unicode
 from jupyter_client.session import extract_header
-from tornado import gen
 
 from jupyter_workflow.config.validator import validate
 from jupyter_workflow.ipython.shell import StreamFlowInteractiveShell
@@ -39,10 +39,12 @@ class WorkflowIPythonKernel(IPythonKernel):
         'file_extension': '.py'
     }
 
-    msg_types = IPythonKernel.msg_types + ['workflow_request', 'auto_inputs_request']
+    msg_types = IPythonKernel.msg_types + [
+        'auto_inputs_request',
+        'background_execute_request',
+        'workflow_request']
 
-    @gen.coroutine
-    def auto_inputs_request(self, stream, ident, parent):
+    async def auto_inputs_request(self, stream, ident, parent):
         try:
             content = parent['content']
             code = content['code']
@@ -50,33 +52,16 @@ class WorkflowIPythonKernel(IPythonKernel):
             self.log.error(e)
             self.log.error("%s", parent)
             return
-        reply_content = yield gen.maybe_future(self.do_auto_inputs_request(code))
+        reply_content = await self.do_auto_inputs_request(code)
         # Send the reply.
         reply_content = json_clean(reply_content)
         reply_msg = self.session.send(stream, 'auto_inputs_reply', reply_content, parent, metadata={}, ident=ident)
         self.log.debug("%s", reply_msg)
 
-    @gen.coroutine
-    def do_auto_inputs_request(self, code):
+    async def do_auto_inputs_request(self, code):
         shell = self.shell
         reply_content = {}
-        if (
-                _asyncio_runner
-                and shell.loop_runner is _asyncio_runner
-                and asyncio.get_event_loop().is_running()
-        ):
-            coro = shell.retrieve_inputs(code)
-            coro_future = asyncio.ensure_future(coro)
-
-            with self._cancel_on_sigint(coro_future):
-                res = yield coro_future
-        else:
-            coro = shell.retrieve_inputs(code)
-            if shell.trio_runner:
-                runner = shell.trio_runner
-            else:
-                runner = shell.loop_runner
-            res = runner(coro)
+        res = await shell.retrieve_inputs(code)
         if res.error_before_exec is not None:
             err = res.error_before_exec
         else:
@@ -94,6 +79,35 @@ class WorkflowIPythonKernel(IPythonKernel):
             })
         shell.payload_manager.clear_payload()
         return reply_content
+
+    async def background_execute_request(self, stream, ident, parent):
+        # Fast-forward reply content
+        try:
+            content = parent["content"]
+            user_expressions = content.get("user_expressions", {})
+        except Exception:
+            self.log.error("Got bad msg: ")
+            self.log.error("%s", parent)
+            return
+        reply_content = {
+            'status': 'background',
+            'execution_count': self.shell.execution_count - 1,
+            'user_expressions': self.shell.user_expressions(user_expressions or {}),
+            'payload': self.shell.payload_manager.read_payload()}
+        self.session.send(
+            stream,
+            "execute_reply",
+            reply_content,
+            parent,
+            metadata={},
+            ident=ident)
+        # Call normal execute
+        task = asyncio.create_task(self.execute_request(stream, ident, parent))
+        task.add_done_callback(partial(self.shell.delete_parent, parent=parent))
+
+    async def execute_request(self, stream, ident, parent):
+        await super().execute_request(stream, ident, parent)
+        self.shell.delete_parent(parent)
 
     def init_metadata(self, parent):
         # Call parent functionse
@@ -120,8 +134,7 @@ class WorkflowIPythonKernel(IPythonKernel):
         # Call parent function
         return super().finish_metadata(parent, metadata, reply_content)
 
-    @gen.coroutine
-    def workflow_request(self, stream, ident, parent):
+    async def workflow_request(self, stream, ident, parent):
         try:
             content = parent['content']
             notebook = content['notebook']
@@ -130,7 +143,7 @@ class WorkflowIPythonKernel(IPythonKernel):
             self.log.error("%s", parent)
             return
         metadata = self.init_metadata(parent)
-        reply_content = yield gen.maybe_future(self.do_workflow(notebook, ident, parent))
+        reply_content = await self.do_workflow(notebook, ident, parent)
         sys.stdout.flush()
         sys.stderr.flush()
         if self._execute_sleep:
@@ -143,30 +156,10 @@ class WorkflowIPythonKernel(IPythonKernel):
                                       ident=ident)
         self.log.debug("%s", reply_msg)
 
-    @gen.coroutine
-    def do_workflow(self, notebook, ident, parent):
+    async def do_workflow(self, notebook, ident, parent):
         shell = self.shell
         reply_content = {}
-        if (
-                _asyncio_runner
-                and shell.loop_runner is _asyncio_runner
-                and asyncio.get_event_loop().is_running()
-        ):
-            coro = shell.run_workflow(notebook)
-            coro_future = asyncio.ensure_future(coro)
-
-            with self._cancel_on_sigint(coro_future):
-                try:
-                    res = yield coro_future
-                finally:
-                    shell.events.trigger('post_execute')
-        else:
-            coro = shell.run_workflow(notebook)
-            if shell.trio_runner:
-                runner = shell.trio_runner
-            else:
-                runner = shell.loop_runner
-            res = runner(coro)
+        res = await shell.run_workflow(notebook)
         # Send stdout contents to cell streams
         for cell_name, content in res.stdout.items():
             self.session.send(

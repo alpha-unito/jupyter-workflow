@@ -165,6 +165,18 @@ async def test_scatter_input_deps_default(compiler, translator, workflow_cell):
 
 
 # noinspection DuplicatedCode
+async def test_mixed_input_deps(compiler, translator, workflow_cell):
+    set_scatter(workflow_cell, {'items': ['a']})
+    set_code(workflow_cell, get_from_file('two_lists_sum.py'))
+    outputs = await run(
+        cell=workflow_cell,
+        compiler=compiler,
+        translator=translator,
+        user_ns={'a': [1, 2, 3, 4], 'b': [1, 2, 3, 4]})
+    assert get_ipython_out(outputs) == '2\n3\n4\n5\n3\n4\n5\n6\n4\n5\n6\n7\n5\n6\n7\n8'
+
+
+# noinspection DuplicatedCode
 async def test_scatter_input_deps_cartesian(compiler, translator, workflow_cell):
     set_scatter(workflow_cell, {'items': ['a', 'b'], 'method': 'cartesian'})
     set_code(workflow_cell, get_from_file('two_lists_sum.py'))

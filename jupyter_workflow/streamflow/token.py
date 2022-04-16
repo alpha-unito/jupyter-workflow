@@ -1,6 +1,5 @@
 from typing import MutableSequence
 
-import dill
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.data import DataType
 from streamflow.core.utils import get_token_value

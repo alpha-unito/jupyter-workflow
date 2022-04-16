@@ -13,6 +13,7 @@ class WorkflowOutStream(OutStream):
 
     def __init__(self, *args, **kwargs):
         self._buffer_dict: MutableMapping[str, StringIO] = {}
+        self._parent_headers: MutableMapping[str, MutableMapping] = {}
         self.cell_id: ContextVar[str] = ContextVar('cell_id', default='')
         super().__init__(*args, **kwargs)
 
@@ -23,6 +24,10 @@ class WorkflowOutStream(OutStream):
     @_buffer.setter
     def _buffer(self, stream: StringIO):
         self._buffer_dict[self.cell_id.get()] = stream
+
+    @_buffer.deleter
+    def _buffer(self):
+        del self._buffer_dict[self.cell_id.get()]
 
     def _flush(self, cell_id: str = None):
         self._flush_pending = False
@@ -74,10 +79,32 @@ class WorkflowOutStream(OutStream):
         else:
             self._flush()
 
+    def delete_parent(self, parent):
+        if 'workflow' in parent['content']:
+            self.set_cell_id(parent['content']['workflow'].get('cell_id', ''))
+        del self.parent_header
+
+    @property
+    def parent_header(self):
+        return self._parent_headers[self.cell_id.get()]
+
+    @parent_header.setter
+    def parent_header(self, header: MutableMapping):
+        self._parent_headers[self.cell_id.get()] = header
+
+    @parent_header.deleter
+    def parent_header(self):
+        del self._parent_headers[self.cell_id.get()]
+
     def set_cell_id(self, cell_id: str):
         self.cell_id.set(cell_id)
         if cell_id not in self._buffer_dict:
             self._buffer_dict[cell_id] = StringIO()
+
+    def set_parent(self, parent):
+        if 'workflow' in parent['content']:
+            self.set_cell_id(parent['content']['workflow'].get('cell_id', ''))
+        super().set_parent(parent)
 
     def write(self, string: str) -> int:
         if not isinstance(string, str):
