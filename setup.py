@@ -38,7 +38,7 @@ setup(
         "jsonref",
         "jsonschema",
         "jupyter_client",
-        "streamflow >= 0.0.30",
+        "streamflow >= 0.2.0.dev0",
         "traitlets"
     ],
     python_requires=">=3.8, <4",
