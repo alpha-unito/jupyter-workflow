@@ -254,6 +254,8 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
 
     async def run_workflow(self, notebook):
         result = ExecutionResult(None)
+        result.stdout = {}
+        result.out = {}
         cells = [self.transform_cell(cell['code']) for cell in notebook['cells']]
         with self.builtin_trap, self.display_trap:
             try:
@@ -296,13 +298,11 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             try:
                 await StreamFlowExecutor(workflow).run()
                 # Capture output logs
-                result.stdout = {}
                 outputs = await _get_outputs(workflow, executor.CELL_OUTPUT)
                 for cell_name, token in outputs.items():
                     if output := _get_stdout(get_token_value(token)):
                         result.stdout[cell_name] = output
                 # Capture IPython 'Out' content
-                result.out = {}
                 ipython_outs = await _get_outputs(workflow, 'Out')
                 for cell_name, token in ipython_outs.items():
                     try:
