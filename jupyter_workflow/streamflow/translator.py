@@ -117,7 +117,6 @@ def _process_scatter_entries(entries: MutableSequence[Union[str, MutableMapping[
                              workflow: Workflow) -> None:
     for entry in entries:
         if isinstance(entry, str):
-            input_ports[entry] = workflow.create_port()
             combinator.add_item(entry)
         else:
             if scatter_method == 'dotproduct':
