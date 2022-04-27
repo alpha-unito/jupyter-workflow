@@ -159,6 +159,10 @@ class WorkflowIPythonKernel(IPythonKernel):
     async def do_workflow(self, notebook, ident, parent):
         shell = self.shell
         reply_content = {}
+        parent['content']['workflow'] = {}
+        for cell in notebook['cells']:
+            parent['content']['workflow']['cell_id'] = cell['metadata']['cell_id']
+            self.set_parent(ident, parent)
         res = await shell.run_workflow(notebook)
         # Send stdout contents to cell streams
         for cell_name, content in res.stdout.items():
