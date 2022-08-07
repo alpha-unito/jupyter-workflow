@@ -197,6 +197,7 @@ class JupyterCommand(Command):
             cmd.extend(["--predump-output-serializers", predump_serializers_path])
         for name in output_names:
             cmd.extend(["--output-name", name])
+        cmd.extend(["--tmpdir", job.tmp_directory])
         cmd.extend([code_path, output_path])
         # Execute command
         if connector is not None:

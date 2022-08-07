@@ -48,11 +48,14 @@ def _add_gather_step(cell_id: str,
 def _add_scatter_step(cell_id: str,
                       name: str,
                       port: Port,
+                      split: MutableMapping[str, int],
                       workflow: Workflow):
     # Add split step
     split_step = workflow.create_step(
         cls=MakeListTransformer,
-        name=posixpath.join(cell_id, name, '__split__'))
+        name=posixpath.join(cell_id, name, '__split__'),
+        split_type=next(iter(split.keys())),
+        split_size=int(next(iter(split.values()))))
     split_step.add_input_port(name, port)
     split_step.add_output_port(name, workflow.create_port())
     # Add scatter step
@@ -86,8 +89,8 @@ def _build_target(deployment_name: str, step_target: MutableMapping[str, Any]) -
             external=target_model.get('external', False)
         ),
         locations=step_target.get('locations', 1),
-        service=step_target.get('service')
-    )
+        service=step_target.get('service'),
+        workdir=step_target.get('workdir'))
 
 
 def _extract_dependencies(cell_name: str,
@@ -99,14 +102,17 @@ def _extract_dependencies(cell_name: str,
     return list(visitor.deps)
 
 
-def _get_scatter_inputs(scatter_schema: Optional[MutableMapping[str, Any]]) -> Set:
-    scatter_inputs = set()
+def _get_scatter_inputs(scatter_schema: Optional[MutableMapping[str, Any]]) -> MutableMapping[str, Any]:
+    scatter_inputs = {}
     if scatter_schema:
         for entry in scatter_schema.get('items') or []:
             if isinstance(entry, str):
-                scatter_inputs.add(entry)
+                scatter_inputs[entry] = {'size': 1}
             else:
-                scatter_inputs.update(_get_scatter_inputs(entry))
+                if 'items' in entry:
+                    scatter_inputs.update(_get_scatter_inputs(entry))
+                else:
+                    scatter_inputs[entry['name']] = {k: v for k, v in entry.items() if k != 'name'}
     return scatter_inputs
 
 
@@ -537,6 +543,7 @@ class JupyterNotebookTranslator(object):
                         cell_id=metadata['cell_id'],
                         name=name,
                         port=input_ports[name],
+                        split=scatter_inputs[name],
                         workflow=workflow)
                 # Get serializer if present
                 serializer = (metadata['serializers'][element['serializer']]
@@ -564,6 +571,7 @@ class JupyterNotebookTranslator(object):
                             cell_id=metadata['cell_id'],
                             name=name,
                             port=input_ports[name],
+                            split=scatter_inputs[name],
                             workflow=workflow)
                     # Add name output processor to the execute step
                     step.output_processors[name] = JupyterNameCommandOutputProcessor(

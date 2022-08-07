@@ -41,7 +41,7 @@ parser.add_argument('--local-ns-file', nargs='?')
 parser.add_argument('--postload-input-serializers', nargs='?')
 parser.add_argument('--predump-output-serializers', nargs='?')
 parser.add_argument('--output-name', action='append')
-parser.add_argument('--workdir', nargs='?')
+parser.add_argument('--tmpdir', nargs='?')
 
 
 def _deserialize(path, default=None):
@@ -62,7 +62,7 @@ def _serialize(compiler, namespace, args):
             serializer=predump_output_serializers.get(k)) for k, v in namespace.items() if k in args.output_name}
     else:
         namespace = {k: v for k, v in namespace.items() if k in args.output_name}
-    with NamedTemporaryFile(delete=False) as f:
+    with NamedTemporaryFile(dir=args.tmpdir, delete=False) as f:
         pickle.dump(namespace, f)
         return f.name
 
@@ -188,10 +188,6 @@ async def run_code(args):
         user_ns['Out'] = sys.displayhook.out_var.getvalue().strip()
         if args.output_name:
             output[CELL_LOCAL_NS] = _serialize(compiler, user_ns, args)
-            if args.workdir:
-                dest_path = os.path.join(args.workdir, os.path.basename(output[CELL_LOCAL_NS]))
-                shutil.move(output[CELL_LOCAL_NS], dest_path)
-                output[CELL_LOCAL_NS] = dest_path
         else:
             output[CELL_LOCAL_NS] = ''
         output[CELL_STATUS] = 'COMPLETED'

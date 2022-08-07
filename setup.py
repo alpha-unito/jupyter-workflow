@@ -41,11 +41,18 @@ setup(
         "streamflow >= 0.2.0.dev0",
         "traitlets"
     ],
-    python_requires=">=3.8, <4",
+    extras_require={
+        "docs": [
+            "sphinx",
+            "sphinx-jsonschema",
+            "sphinx-rtd-theme"
+        ]
+    },
     tests_require=[
         "pytest",
         "pytest-asyncio>=0.17"
     ],
+    python_requires=">=3.8, <4",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",

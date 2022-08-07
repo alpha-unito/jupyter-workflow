@@ -1,10 +1,12 @@
 import os
 from pathlib import Path
-from typing import MutableMapping, Any
+from typing import Any, MutableMapping
 
 import streamflow.config
-from jsonref import loads, JsonLoader
+from jsonref import loads
 from jsonschema import Draft7Validator
+from streamflow.core import utils
+from streamflow.deployment.connector import connector_classes
 from typing_extensions import Text
 
 
@@ -35,5 +37,6 @@ def handle_errors(errors):
 
 def validate(workflow_config: MutableMapping[Text, Any]) -> None:
     schema = load_jsonschema(workflow_config)
+    utils.inject_schema(schema, connector_classes, 'deployment')
     validator = Draft7Validator(schema)
     handle_errors(validator.iter_errors(workflow_config))
