@@ -22,7 +22,6 @@ from streamflow.data.data_manager import DefaultDataManager
 from streamflow.deployment.deployment_manager import DefaultDeploymentManager
 from streamflow.recovery.checkpoint_manager import DummyCheckpointManager
 from streamflow.recovery.failure_manager import DummyFailureManager
-from streamflow.scheduling.policy import DataLocalityPolicy
 from streamflow.scheduling.scheduler import DefaultScheduler
 from streamflow.workflow.executor import StreamFlowExecutor
 from traitlets import Type, observe
@@ -95,9 +94,9 @@ def build_context() -> StreamFlowContext:
     context: StreamFlowContext = StreamFlowContext(os.getcwd())
     context.checkpoint_manager = DummyCheckpointManager(context)
     context.data_manager = DefaultDataManager(context)
-    context.deployment_manager = DefaultDeploymentManager(os.getcwd())
+    context.deployment_manager = DefaultDeploymentManager(context)
     context.failure_manager = DummyFailureManager(context)
-    context.scheduler = DefaultScheduler(context, DataLocalityPolicy())
+    context.scheduler = DefaultScheduler(context)
     return context
 
 
@@ -223,7 +222,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
 
     # noinspection PyProtectedMember
     async def run_ast_nodes(self,
-                            nodelist: List[ast.AST],
+                            nodelist: List[ast.stmt],
                             cell_name: str,
                             interactivity='last_expr',
                             compiler=compile,

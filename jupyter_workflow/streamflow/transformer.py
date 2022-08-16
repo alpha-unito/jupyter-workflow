@@ -1,7 +1,10 @@
 import ast
+import json
 from typing import Any, MutableMapping, MutableSequence
 
+from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import WorkflowExecutionException
+from streamflow.core.persistence import DatabaseLoadingContext
 from streamflow.core.utils import get_token_value
 from streamflow.core.workflow import Token, Workflow
 from streamflow.workflow.token import ListToken
@@ -43,6 +46,23 @@ class MakeListTransformer(OneToOneTransformer):
         super().__init__(name, workflow)
         self.split_type: str = split_type
         self.split_size: int = split_size
+
+    @classmethod
+    async def _load(cls,
+                    context: StreamFlowContext,
+                    row: MutableMapping[str, Any],
+                    loading_context: DatabaseLoadingContext):
+        params = json.loads(row['params'])
+        return cls(
+            name=row['name'],
+            workflow=await loading_context.load_workflow(context, row['workflow']),
+            split_type=params['split_type'],
+            split_size=params['split_size'])
+
+    async def _save_additional_params(self, context: StreamFlowContext) -> MutableMapping[str, Any]:
+        return {**await super()._save_additional_params(context),
+                **{'split_type': self.split_type,
+                   'split_size': self.split_size}}
 
     def _split(self, token_value: MutableSequence[Any], tag: str):
         size = len(token_value)

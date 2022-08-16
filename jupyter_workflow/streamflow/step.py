@@ -1,13 +1,22 @@
+from __future__ import annotations
+
 import ast
 import asyncio
+import json
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, List, MutableMapping, Optional, Tuple, cast
+from typing import Any, List, MutableMapping, Optional, Tuple, Type, cast
 
+import cloudpickle as pickle
 from IPython.core.compilerop import CachingCompiler
 from IPython.core.interactiveshell import softspace
+from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import WorkflowDefinitionException, WorkflowExecutionException
-from streamflow.core.utils import check_termination, get_path_processor, get_token_value
+from streamflow.core.persistence import DatabaseLoadingContext
+from streamflow.core.utils import (
+    check_termination, get_class_from_name, get_class_fullname, get_path_processor,
+    get_token_value
+)
 from streamflow.core.workflow import CommandOutput, CommandOutputProcessor, Job, Port, Status, Token, Workflow
 from streamflow.log_handler import logger
 from streamflow.workflow.port import JobPort
@@ -26,10 +35,35 @@ class JupyterInputInjectorStep(BaseStep, ABC):
                  name: str,
                  workflow: Workflow,
                  context_port: ProgramContextPort,
-                 job_port: JobPort):
+                 job_port: JobPort,
+                 value: Optional[str] = None,
+                 value_from: Optional[str] = None):
         super().__init__(name, workflow)
         self.add_input_port("__job__", job_port)
         self.add_input_port("__context__", context_port)
+        self.value: Optional[str] = value
+        self.value_from: Optional[str] = value_from
+
+    @classmethod
+    async def _load(cls,
+                    context: StreamFlowContext,
+                    row: MutableMapping[str, Any],
+                    loading_context: DatabaseLoadingContext) -> JupyterInputInjectorStep:
+        params = json.loads(row['params'])
+        return cls(
+            name=row['name'],
+            workflow=await loading_context.load_workflow(context, row['workflow']),
+            context_port=cast(ProgramContextPort, await loading_context.load_port(context, params['context_port'])),
+            job_port=cast(JobPort, await loading_context.load_port(context, params['job_port'])),
+            value=params['value'],
+            value_from=params['value_from'])
+
+    async def _save_additional_params(self, context: StreamFlowContext) -> MutableMapping[str, Any]:
+        return {**await super()._save_additional_params(context),
+                **{'context_port': self.get_input_port('__context__').persistent_id,
+                   'job_port': self.get_input_port('__job__').persistent_id,
+                   'value': self.value,
+                   'value_from': self.value_from}}
 
     def add_output_port(self, name: str, port: Port) -> None:
         if not self.output_ports or port.name in self.output_ports:
@@ -61,7 +95,7 @@ class JupyterInputInjectorStep(BaseStep, ABC):
                 # Process value and inject token in the output port
                 self.get_output_port().put(await self.process_input(job, user_ns, token.value))
         # Terminate step
-        self.terminate(Status.SKIPPED if self.get_output_port().empty() else Status.COMPLETED)
+        await self.terminate(Status.SKIPPED if self.get_output_port().empty() else Status.COMPLETED)
 
     @abstractmethod
     async def process_input(self,
@@ -90,7 +124,10 @@ class JupyterFileInputInjectorStep(JupyterInputInjectorStep):
                             token_value: Any):
         return await utils.get_file_token_from_ns(
             context=self.workflow.context,
+            connector=self.workflow.context.scheduler.get_connector(job.name),
             job=job,
+            locations=self.workflow.context.scheduler.get_locations(job.name),
+            output_directory=job.output_directory,
             user_ns=user_ns,
             value=self.value,
             value_from=self.value_from)
@@ -137,6 +174,25 @@ class JupyterNotebookStep(BaseStep):
         self.add_input_port('__context__', context_port)
         self.add_output_port('__context__', workflow.create_port(cls=ProgramContextPort))
 
+    @classmethod
+    async def _load(cls,
+                    context: StreamFlowContext,
+                    row: MutableMapping[str, Any],
+                    loading_context: DatabaseLoadingContext) -> JupyterNotebookStep:
+        params = json.loads(row['params'])
+        step = cls(
+            name=row['name'],
+            workflow=await loading_context.load_workflow(context, row['workflow']),
+            ast_nodes=pickle.loads(params['ast_nodes']),
+            autoawait=params['autoawait'],
+            compiler=cast(Type[CachingCompiler], get_class_from_name(params['compiler']))(),
+            context_port=cast(ProgramContextPort, await loading_context.load_port(context, params['context_port'])))
+        step.output_processors = {k: v for k, v in zip(
+            params['output_processors'].keys(),
+            await asyncio.gather(*(asyncio.create_task(CommandOutputProcessor.load(context, p, loading_context))
+                                   for p in params['output_processors'].values())))}
+        return step
+
     async def _retrieve_output(self,
                                job: Job,
                                output_name: str,
@@ -171,6 +227,17 @@ class JupyterNotebookStep(BaseStep):
         # Propagate the new context
         self.get_output_context_port().put_context(user_ns)
 
+    async def _save_additional_params(self, context: StreamFlowContext) -> MutableMapping[str, Any]:
+        return {**await super()._save_additional_params(context),
+                **{'ast_nodes': pickle.dumps(self.ast_nodes),
+                   'autoawait': self.autoawait,
+                   'compiler': get_class_fullname(type(self.compiler)),
+                   'context_port': self.get_input_port('__context__').persistent_id,
+                   'output_processors': {k: v for k, v in zip(
+                       self.output_processors.keys(),
+                       await asyncio.gather(*(asyncio.create_task(p.save(context))
+                                              for p in self.output_processors.values())))}}}
+
     def add_output_port(self,
                         name: str,
                         port: Port,
@@ -198,7 +265,7 @@ class JupyterNotebookStep(BaseStep):
             # Run code locally
             await self._run_ast_nodes({})
         # Terminate step
-        self.terminate(Status.SKIPPED if self.get_output_context_port().empty() else Status.COMPLETED)
+        await self.terminate(Status.SKIPPED if self.get_output_context_port().empty() else Status.COMPLETED)
 
 
 class JupyterScatterStep(ScatterStep):

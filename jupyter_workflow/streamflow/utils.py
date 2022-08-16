@@ -5,7 +5,7 @@ from typing import Any, MutableMapping, MutableSequence
 
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.deployment import Target
+from streamflow.core.deployment import Connector, Target
 from streamflow.core.workflow import Job, Token, Workflow
 from streamflow.data import remotepath
 from streamflow.workflow.step import DeployStep
@@ -43,22 +43,23 @@ def get_deploy_step(deployment_map: MutableMapping[str, DeployStep],
 
 
 async def get_file_token_from_ns(context: StreamFlowContext,
+                                 connector: Connector,
                                  job: Job,
+                                 locations: MutableSequence[str],
+                                 output_directory: str,
                                  user_ns: MutableMapping[str, Any],
                                  value: Any,
                                  value_from: str) -> Token:
-    connector = context.scheduler.get_connector(job.name)
     path_processor = utils.get_path_processor(connector)
-    locations = context.scheduler.get_locations(job.name)
     if value is not None:
-        pattern = (value if path_processor.isabs(value) else path_processor.join(job.output_directory, value))
+        pattern = (value if path_processor.isabs(value) else path_processor.join(output_directory, value))
         value = utils.flatten_list(await asyncio.gather(*(asyncio.create_task(
             remotepath.resolve(
                 connector=connector,
                 location=location,
                 pattern=pattern
             )) for location in locations)))
-        value = [v if path_processor.isabs(v) else path_processor.join(job.output_directory, v) for v in value]
+        value = [v if path_processor.isabs(v) else path_processor.join(output_directory, v) for v in value]
         await asyncio.gather(*(asyncio.create_task(
             _register_path(
                 context=context,
@@ -70,7 +71,7 @@ async def get_file_token_from_ns(context: StreamFlowContext,
     else:
         value = user_ns.get(value_from)
         if not path_processor.isabs(value):
-            value = path_processor.join(job.output_directory, value)
+            value = path_processor.join(output_directory, value)
         await _register_path(
             context=context,
             job=job,

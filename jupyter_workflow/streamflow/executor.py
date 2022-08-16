@@ -6,13 +6,11 @@ import codeop
 import inspect
 import io
 import json
-import os
-import shutil
 import sys
 import traceback
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, MutableMapping, Tuple
+from typing import Any, Dict, List, MutableMapping, Tuple, cast
 
 if sys.version_info > (3, 8):
     from ast import Module
@@ -152,9 +150,9 @@ async def run_ast_nodes(ast_nodes: List[Tuple[ast.AST, str]],
             code_obj = compiler(mod, '', mode)
             asynchronous = compare(code_obj)
         if asynchronous:
-            await eval(code_obj, user_ns, user_ns)
+            await eval(code_obj, cast(Dict[str, Any], user_ns), user_ns)
         else:
-            exec(code_obj, user_ns, user_ns)
+            exec(code_obj, cast(Dict[str, Any], user_ns), user_ns)
 
 
 async def run_code(args):

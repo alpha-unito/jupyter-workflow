@@ -84,10 +84,9 @@ def _build_target(deployment_name: str, step_target: MutableMapping[str, Any]) -
     return Target(
         deployment=DeploymentConfig(
             name=deployment_name,
-            connector_type=target_model['type'],
+            type=target_model['type'],
             config=target_model['config'],
-            external=target_model.get('external', False)
-        ),
+            external=target_model.get('external', False)),
         locations=step_target.get('locations', 1),
         service=step_target.get('service'),
         workdir=step_target.get('workdir'))
@@ -753,7 +752,10 @@ class JupyterNotebookTranslator(object):
                         notebook: JupyterNotebook,
                         user_ns: MutableMapping[str, Any]) -> Workflow:
         # Create workflow
-        workflow = Workflow(self.context)
+        workflow = Workflow(
+            context=self.context,
+            type='jupyter',
+            name=utils.random_name())
         # Add program context port with initial program context
         context_port = workflow.create_port(cls=ProgramContextPort)
         context_port.put_context(user_ns)
