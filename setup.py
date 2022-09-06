@@ -1,3 +1,5 @@
+import os
+import pathlib
 from os import path
 
 from setuptools import setup
@@ -30,17 +32,7 @@ setup(
     author_email="iacopo.colonnelli@unito.it",
     url='https://github.com/alpha-unito/jupyter-workflow',
     download_url="".join(['https://github.com/alpha-unito/jupyter-workflow/releases']),
-    install_requires=[
-        "cloudpickle",
-        "IPython",
-        "ipython_genutils",
-        "ipykernel",
-        "jsonref",
-        "jsonschema",
-        "jupyter_client",
-        "streamflow >= 0.2.0.dev0",
-        "traitlets"
-    ],
+    install_requires=open(os.path.join(pathlib.Path(__file__).parent, 'requirements.txt')),
     extras_require={
         "docs": [
             "sphinx",
