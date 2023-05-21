@@ -1,0 +1,94 @@
+name: "CI Tests"
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  code-ql-check:
+    name: "Jupyter Workflow CodeQL check"
+    runs-on: ubuntu-22.04
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: github/codeql-action/init@v2
+        with:
+          config-file: .github/codeql/config.yml
+          languages: python
+      - uses: github/codeql-action/analyze@v2
+  static-checks:
+    name: "Jupyter Workflow static checks"
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        step: [ "bandit", "lint" ]
+    env:
+      TOXENV: ${{ matrix.step }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tox.ini
+      - name: "Install Python Dependencies and Jupyter Workflow"
+        run: |
+          python -m pip install tox --user
+          python -m pip install . --user
+      - name: "Run Jupyter Workflow static analysis via Tox"
+        run: tox
+  unit-tests:
+    name: "Jupyter Workflow unit tests"
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python: [ "3.8", "3.9", "3.10", "3.11" ]
+    env:
+      TOXENV: ${{ format('py{0}-unit', matrix.python) }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tox.ini
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "15"
+      - uses: docker/setup-qemu-action@v2
+      - name: "Install Python Dependencies and Jupyter Workflow"
+        run: |
+          python -m pip install tox --user
+          python -m pip install . --user
+      - name: "Run Jupyter Workflow tests via Tox"
+        run: tox
+      - name: "Upload coverage report for unit tests"
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ format('py{0}-unit-tests', matrix.python) }}
+          path: ./coverage.xml
+          retention-days: 1
+          if-no-files-found: error
+  upload-to-codecov:
+    name: "Codecov report upload"
+    needs: ["cwl-conformance", "unit-tests"]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Download artifacts"
+        uses: actions/download-artifact@v3
+      - name: "Upload coverage to Codecov"
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}

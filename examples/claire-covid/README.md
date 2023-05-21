@@ -2,13 +2,13 @@
 
 The CLAIRE-COVID19 universal pipeline has been designed to compare different training algorithms for the AI-assisted diagnosis of COVID-19, in order to define a baseline for such techniques and to allow the community to quantitatively measure AI’s progress in this field. For more information, please read [this post](https://streamflow.di.unito.it/2021/04/12/ai-assisted-covid-19-diagnosis-with-the-claire-universal-pipeline/).
 
-This notebook showcases how the classification-related portion of the pipeline can be succesfully described and documented in Jupyter, using the *Jupyter-workflow* to execute it at scale on an HPC facility.
+This notebook showcases how the classification-related portion of the pipeline can be successfully described and documented in Jupyter, using the *Jupyter-workflow* to execute it at scale on an HPC facility.
 
 The first preprocessing portion of the pipeline is left outside the notebook. It could clearly (and effectively) be included, but since this example wants to serve as an introductory demonstration, we wanted to keep it as simple as possible.
 
 ## Preliminary steps
 
-In order to succesfully run this notebook, you first need to produce a pre-processed and filtered version of the [BIMCV-COVID19+](https://bimcv.cipf.es/bimcv-projects/bimcv-covid19/) dataset (Iteration 1). Instructions on how to do this can be found [here](https://github.com/CLAIRE-COVID/AI-Covid19-preprocessing) and [here](https://github.com/CLAIRE-COVID/AI-Covid19-pipelines).
+In order to successfully run this notebook, you first need to produce a pre-processed and filtered version of the [BIMCV-COVID19+](https://bimcv.cipf.es/bimcv-projects/bimcv-covid19/) dataset (Iteration 1). Instructions on how to do this can be found [here](https://github.com/CLAIRE-COVID/AI-Covid19-preprocessing) and [here](https://github.com/CLAIRE-COVID/AI-Covid19-pipelines).
 
 This procedure will produce three different versions of the dataset. For this experiment, we need the `final3_BB` folder, which can be either manually pre-transferred on the remote HPC facility (as we did) or left on the local machine, letting *Jupyter-workflow* automatically perform the data transfer when needed.
 

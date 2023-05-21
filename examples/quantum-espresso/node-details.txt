@@ -1,6 +1,6 @@
 The davinci-1 HPC facility is a private infrastructure, so not all the details can be disclosed for security reasons.
 The relevant details about compilation and linking of the QuantumEspresso CP executable, together with the MPI version
-used to perform the parallel run and some informations on the hardware equipment, are reported below:
+used to perform the parallel run and some information on the hardware equipment, are reported below:
 
 Version: CP v.6.7GPU
 

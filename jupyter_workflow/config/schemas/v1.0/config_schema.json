@@ -122,7 +122,7 @@
         "background": {
           "type": "boolean",
           "default": false,
-          "description": "A cell without output ports can run in background when the noteboook is in interactive mode. Note that this has no effect in workflow mode"
+          "description": "A cell without output ports can run in background when the notebook is in interactive mode. Note that this has no effect in workflow mode"
         },
         "in": {
           "type": "array",

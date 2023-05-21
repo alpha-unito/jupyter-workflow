@@ -1014,7 +1014,7 @@ define([
                                         .attr('href', '#')
                                         .attr('data-toggle', 'tooltip')
                                         .attr('title', i18n.msg._(
-                                            'A cell without output ports can run in background when the noteboook ' +
+                                            'A cell without output ports can run in background when the notebook ' +
                                             'is in interactive mode. Note that this has no effect in workflow mode'))
                                         .append($('<i/>')
                                             .addClass('fa-question-circle')

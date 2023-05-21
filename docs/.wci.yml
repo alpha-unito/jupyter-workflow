@@ -1,0 +1,24 @@
+name: Jupyter Workflow
+icon: https://raw.githubusercontent.com/alpha-unito/jupyter-workflow/master/docs/logo.png
+headline: "Literate Distributed Computing"
+description: "Jupyter Workflow is an extension of the IPython kernel designed to support distributed literate workflows, developed and maintained by the Alpha research group at Università di Torino (UniTO). The Jupyter Workflow kernel enables Jupyter Notebooks to describe complex workflows and to execute them in a distributed fashion on hybrid cloud/HPC infrastructures."
+language: Python
+documentation:
+  general: https://jupyter-workflow.di.unito.it/documentation/latest/
+  installation: https://jupyter-workflow.di.unito.it/documentation/latest/install.html
+  tutorial: https://jupyter-workflow.di.unito.it/documentation/latest/operations.html
+execution_environment:
+  interfaces:
+   - Jupyter Notebook
+  resource_managers:
+   - Local
+   - SSH
+   - Kubernetes
+   - Docker
+   - Docker Compose
+   - Singularity
+   - SLURM
+   - PBS
+  transfer_protocols:
+   - SCP
+   - WebSocket (Kubernetes)
