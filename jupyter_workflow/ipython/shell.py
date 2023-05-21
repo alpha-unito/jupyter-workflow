@@ -101,7 +101,7 @@ def _get_stdout(token_value: Any):
 
 
 def build_context() -> StreamFlowContext:
-    context: StreamFlowContext = StreamFlowContext(os.getcwd())
+    context: StreamFlowContext = StreamFlowContext({"path": os.getcwd()})
     context.checkpoint_manager = DummyCheckpointManager(context)
     context.database = SqliteDatabase(context, ":memory:")
     context.data_manager = DefaultDataManager(context)
