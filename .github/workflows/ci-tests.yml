@@ -81,7 +81,7 @@ jobs:
           if-no-files-found: error
   upload-to-codecov:
     name: "Codecov report upload"
-    needs: ["cwl-conformance", "unit-tests"]
+    needs: [ "unit-tests" ]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3

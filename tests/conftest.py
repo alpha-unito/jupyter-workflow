@@ -44,14 +44,15 @@ def compiler():
 
 
 @pytest.fixture
-def context():
-    context = build_context()
-    context.data_manager.register_path(
+async def context():
+    _context = build_context()
+    _context.data_manager.register_path(
         location=Location(os.path.join(executor.__file__), LOCAL_LOCATION),
         path=os.path.join(executor.__file__),
         relpath=os.path.basename(executor.__file__),
     )
-    return context
+    yield _context
+    await _context.close()
 
 
 @pytest.fixture

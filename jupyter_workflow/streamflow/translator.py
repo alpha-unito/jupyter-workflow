@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import hashlib
 import json
@@ -5,13 +7,8 @@ import os
 import posixpath
 from typing import (
     Any,
-    List,
     MutableMapping,
     MutableSequence,
-    Optional,
-    Set,
-    Tuple,
-    Union,
 )
 
 from IPython.core.compilerop import CachingCompiler
@@ -128,7 +125,7 @@ def _build_target(
 
 
 def _extract_dependencies(
-    cell_name: str, compiler: CachingCompiler, ast_nodes: List[Tuple[ast.AST, str]]
+    cell_name: str, compiler: CachingCompiler, ast_nodes: list[tuple[ast.AST, str]]
 ) -> MutableSequence[str]:
     visitor = DependenciesRetriever(cell_name, compiler)
     for node, _ in ast_nodes:
@@ -137,7 +134,7 @@ def _extract_dependencies(
 
 
 def _get_scatter_inputs(
-    scatter_schema: Optional[MutableMapping[str, Any]]
+    scatter_schema: MutableMapping[str, Any] | None
 ) -> MutableMapping[str, Any]:
     scatter_inputs = {}
     if scatter_schema:
@@ -155,7 +152,7 @@ def _get_scatter_inputs(
 
 
 def _process_scatter_entries(
-    entries: MutableSequence[Union[str, MutableMapping[str, Any]]],
+    entries: MutableSequence[str | MutableMapping[str, Any]],
     combinator: Combinator,
     input_ports: MutableMapping[str, Port],
     scatter_method: str,
@@ -187,7 +184,7 @@ def _process_scatter_entries(
 
 class NamesStack:
     def __init__(self):
-        self.stack: List[Set] = [set()]
+        self.stack: list[set] = [set()]
 
     def add_scope(self):
         self.stack.append(set())
@@ -213,7 +210,7 @@ class DependenciesRetriever(ast.NodeVisitor):
         super().__init__()
         self.cell_name: str = cell_name
         self.compiler: CachingCompiler = compiler
-        self.deps: Set[str] = set()
+        self.deps: set[str] = set()
         self.names: NamesStack = NamesStack()
 
     def _visit_fields(self, fields):
@@ -350,14 +347,14 @@ class JupyterCell:
     def __init__(
         self,
         name: str,
-        code: List[Tuple[ast.AST, str]],
+        code: list[tuple[ast.AST, str]],
         compiler: CachingCompiler,
-        metadata: Optional[MutableMapping[str, Any]] = None,
+        metadata: MutableMapping[str, Any] | None = None,
     ):
         self.name: str = name
-        self.code: List[Tuple[ast.AST, str]] = code
+        self.code: list[tuple[ast.AST, str]] = code
         self.compiler: CachingCompiler = compiler
-        self.metadata: Optional[MutableMapping[str, Any]] = metadata or {}
+        self.metadata: MutableMapping[str, Any] | None = metadata or {}
 
 
 class JupyterNotebook:
@@ -365,13 +362,13 @@ class JupyterNotebook:
 
     def __init__(
         self,
-        cells: List[JupyterCell],
+        cells: list[JupyterCell],
         autoawait: bool = False,
-        metadata: Optional[MutableMapping[str, Any]] = None,
+        metadata: MutableMapping[str, Any] | None = None,
     ):
-        self.cells: List[JupyterCell] = cells
+        self.cells: list[JupyterCell] = cells
         self.autoawait: bool = autoawait
-        self.metadata: Optional[MutableMapping[str, Any]] = metadata or {}
+        self.metadata: MutableMapping[str, Any] | None = metadata or {}
 
 
 class JupyterNotebookTranslator:
@@ -560,7 +557,7 @@ class JupyterNotebookTranslator:
         self,
         workflow: Workflow,
         cell: JupyterCell,
-        metadata: Optional[MutableMapping[str, Any]],
+        metadata: MutableMapping[str, Any] | None,
         autoawait: bool = False,
     ) -> Step:
         # Build execution target
