@@ -53,9 +53,8 @@ class WorkflowIPythonKernel(IPythonKernel):
         reply_content = await self.do_auto_inputs_request(code)
         # Send the reply.
         reply_content = json_clean(reply_content)
-        reply_msg = self.session.send(
-            stream, "auto_inputs_reply", reply_content, parent, metadata={}, ident=ident
-        )
+        reply_msg = self.session.msg("auto_inputs_reply", reply_content, parent=parent)
+        self.session.send(stream, reply_msg, ident=ident)
         self.log.debug("%s", reply_msg)
 
     async def do_auto_inputs_request(self, code):
@@ -97,9 +96,8 @@ class WorkflowIPythonKernel(IPythonKernel):
             "user_expressions": self.shell.user_expressions(user_expressions or {}),
             "payload": self.shell.payload_manager.read_payload(),
         }
-        self.session.send(
-            stream, "execute_reply", reply_content, parent, metadata={}, ident=ident
-        )
+        msg = self.session.msg("execute_reply", reply_content, parent=parent)
+        self.session.send(stream, msg, ident=ident)
         # Call normal execute
         task = asyncio.create_task(self.execute_request(stream, ident, parent))
         task.add_done_callback(partial(self.shell.delete_parent, parent=parent))
@@ -162,14 +160,10 @@ class WorkflowIPythonKernel(IPythonKernel):
         # Send the reply.
         reply_content = json_clean(reply_content)
         metadata = self.finish_metadata(parent, metadata, reply_content)
-        reply_msg = self.session.send(
-            stream,
-            "execute_reply",
-            reply_content,
-            parent,
-            metadata=metadata,
-            ident=ident,
+        reply_msg = self.session.msg(
+            "execute_reply", reply_content, parent=parent, metadata=metadata
         )
+        self.session.send(stream, reply_msg, ident=ident)
         self.log.debug("%s", reply_msg)
 
     async def do_workflow(self, notebook, ident, parent):
@@ -182,30 +176,24 @@ class WorkflowIPythonKernel(IPythonKernel):
         res = await shell.run_workflow(notebook)
         # Send stdout contents to cell streams
         for cell_name, content in res.stdout.items():
-            self.session.send(
-                self.iopub_thread,
-                "stream",
-                content={
-                    "name": "stdout",
-                    "metadata": {"cell_id": cell_name},
-                    "text": content,
-                },
-                parent=extract_header(parent),
-                ident=ident,
-            )
+            content = {
+                "name": "stdout",
+                "metadata": {"cell_id": cell_name},
+                "text": content,
+            }
+            msg = self.session.msg("stream", content, parent=extract_header(parent))
+            self.session.send(self.iopub_thread, msg, ident=ident)
         # Send ipython out contents to cell streams
         for cell_name, content in res.out.items():
-            self.session.send(
-                self.iopub_thread,
-                "execute_result",
-                content={
-                    "execution_count": 1,
-                    "data": {"text/plain": repr(content)},
-                    "metadata": {"cell_id": cell_name},
-                },
-                parent=extract_header(parent),
-                ident=b"execute_result",
+            content = {
+                "execution_count": 1,
+                "data": {"text/plain": repr(content)},
+                "metadata": {"cell_id": cell_name},
+            }
+            msg = self.session.msg(
+                "execute_result", content, parent=extract_header(parent)
             )
+            self.session.send(self.iopub_thread, msg, ident=b"execute_result")
         # Send reply message
         if res.error_before_exec is not None:
             err = res.error_before_exec
