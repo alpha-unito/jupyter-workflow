@@ -12,16 +12,15 @@ def add_cell_id_hook(msg: MutableMapping, cell_id: ContextVar):
 
 
 class StreamFlowDisplayPublisher(ZMQDisplayPublisher):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._parent_headers: MutableMapping[str, MutableMapping] = {}
-        self.cell_id: ContextVar[str] = ContextVar('cell_id', default='')
+        self.cell_id: ContextVar[str] = ContextVar("cell_id", default="")
         self.register_hook(partial(add_cell_id_hook, cell_id=self.cell_id))
 
     def delete_parent(self, parent):
-        if 'workflow' in parent['content']:
-            self.set_cell_id(parent['content']['workflow'].get('cell_id', ''))
+        if "workflow" in parent["content"]:
+            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
         del self.parent_header
 
     @property
@@ -40,21 +39,20 @@ class StreamFlowDisplayPublisher(ZMQDisplayPublisher):
         self.cell_id.set(cell_id)
 
     def set_parent(self, parent):
-        if 'workflow' in parent['content']:
-            self.set_cell_id(parent['content']['workflow'].get('cell_id', ''))
+        if "workflow" in parent["content"]:
+            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
         super().set_parent(parent)
 
 
 class StreamFlowShellDisplayHook(ZMQShellDisplayHook):
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._parent_headers: MutableMapping[str, MutableMapping] = {}
-        self.cell_id: ContextVar[str] = ContextVar('cell_id', default='')
+        self.cell_id: ContextVar[str] = ContextVar("cell_id", default="")
 
     def delete_parent(self, parent):
-        if 'workflow' in parent['content']:
-            self.set_cell_id(parent['content']['workflow'].get('cell_id', ''))
+        if "workflow" in parent["content"]:
+            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
         del self.parent_header
 
     @property
@@ -73,12 +71,12 @@ class StreamFlowShellDisplayHook(ZMQShellDisplayHook):
         self.cell_id.set(cell_id)
 
     def set_parent(self, parent):
-        if 'workflow' in parent['content']:
-            self.set_cell_id(parent['content']['workflow'].get('cell_id', ''))
+        if "workflow" in parent["content"]:
+            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
         super().set_parent(parent)
 
     def write_format_data(self, format_dict, md_dict=None):
         if not md_dict:
             md_dict = {}
-        md_dict['cell_id'] = self.cell_id.get()
+        md_dict["cell_id"] = self.cell_id.get()
         super().write_format_data(format_dict, md_dict)

@@ -10,11 +10,10 @@ from ipykernel.iostream import OutStream
 
 
 class WorkflowOutStream(OutStream):
-
     def __init__(self, *args, **kwargs):
         self._buffer_dict: MutableMapping[str, StringIO] = {}
         self._parent_headers: MutableMapping[str, MutableMapping] = {}
-        self.cell_id: ContextVar[str] = ContextVar('cell_id', default='')
+        self.cell_id: ContextVar[str] = ContextVar("cell_id", default="")
         super().__init__(*args, **kwargs)
 
     @property
@@ -46,13 +45,18 @@ class WorkflowOutStream(OutStream):
         data = self._flush_buffer()
         if data:
             self.session.pid = os.getpid()
-            content = {"name": self.name, "metadata": {"cell_id": self.cell_id.get()}, "text": data}
+            content = {
+                "name": self.name,
+                "metadata": {"cell_id": self.cell_id.get()},
+                "text": data,
+            }
             self.session.send(
                 self.pub_thread,
                 "stream",
                 content=content,
                 parent=self.parent_header,
-                ident=self.topic)
+                ident=self.topic,
+            )
 
     def _schedule_flush(self):
         if self._flush_pending:
@@ -60,16 +64,18 @@ class WorkflowOutStream(OutStream):
         self._flush_pending = True
 
         def _schedule_in_thread():
-            self._io_loop.call_later(self.flush_interval, partial(self._flush, cell_id=self.cell_id.get()))
+            self._io_loop.call_later(
+                self.flush_interval, partial(self._flush, cell_id=self.cell_id.get())
+            )
 
         self.pub_thread.schedule(_schedule_in_thread)
 
     def flush(self):
         if (
-                self.pub_thread
-                and self.pub_thread.thread is not None
-                and self.pub_thread.thread.is_alive()
-                and self.pub_thread.thread.ident != threading.current_thread().ident
+            self.pub_thread
+            and self.pub_thread.thread is not None
+            and self.pub_thread.thread.is_alive()
+            and self.pub_thread.thread.ident != threading.current_thread().ident
         ):
             self.pub_thread.schedule(partial(self._flush, cell_id=self.cell_id.get()))
             evt = threading.Event()
@@ -80,8 +86,8 @@ class WorkflowOutStream(OutStream):
             self._flush()
 
     def delete_parent(self, parent):
-        if 'workflow' in parent['content']:
-            self.set_cell_id(parent['content']['workflow'].get('cell_id', ''))
+        if "workflow" in parent["content"]:
+            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
         del self.parent_header
 
     @property
@@ -102,8 +108,8 @@ class WorkflowOutStream(OutStream):
             self._buffer_dict[cell_id] = StringIO()
 
     def set_parent(self, parent):
-        if 'workflow' in parent['content']:
-            self.set_cell_id(parent['content']['workflow'].get('cell_id', ''))
+        if "workflow" in parent["content"]:
+            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
         super().set_parent(parent)
 
     def write(self, string: str) -> int:
@@ -125,7 +131,9 @@ class WorkflowOutStream(OutStream):
                 if self._subprocess_flush_pending:
                     return
                 self._subprocess_flush_pending = True
-                self.pub_thread.schedule(partial(self._flush, cell_id=self.cell_id.get()))
+                self.pub_thread.schedule(
+                    partial(self._flush, cell_id=self.cell_id.get())
+                )
             else:
                 self._schedule_flush()
         return len(string)

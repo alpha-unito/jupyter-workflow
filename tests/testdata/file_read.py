@@ -1,2 +1,2 @@
-with open(input_file, "r") as f:
+with open(input_file) as f:
     f.read()
