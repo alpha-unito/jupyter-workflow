@@ -5,5 +5,6 @@ ipykernel==6.23.1
 jsonref==1.1.0
 jsonschema==4.17.3
 jupyter_client==8.2.0
+nbformat==5.8.0
 streamflow==0.2.0.dev5
 traitlets==5.9.0
