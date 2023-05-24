@@ -11,13 +11,13 @@ coverage-report: testcov
 	coverage report
 
 flake8:
-	flake8 --exclude tests/testdata setup.py jupyter_workflow tests
+	flake8 jupyter_workflow tests
 
 format:
-	black setup.py jupyter_workflow tests
+	black jupyter_workflow tests
 
 format-check:
-	black --diff --check setup.py jupyter_workflow tests
+	black --diff --check jupyter_workflow tests
 
 pyupgrade:
 	pyupgrade --py3-only --py38-plus $(shell git ls-files | grep .py)
@@ -26,4 +26,5 @@ test:
 	python -m pytest -rs ${PYTEST_EXTRA}
 
 testcov:
-	python -m pytest -rs --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
+	coverage run -m pytest -rs ${PYTEST_EXTRA}
+	coverage combine --quiet --append
