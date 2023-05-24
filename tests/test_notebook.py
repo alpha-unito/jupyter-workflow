@@ -12,7 +12,14 @@ from tests.conftest import (
     execute=True,
 )
 def test_two_steps_single_dep(tb):
-    tb.on_cell_execute = partial(on_cell_execute, client=tb)
+    assert tb.cell_output_text(1) == "2"
+
+
+@testflow(
+    get_file("two_steps_single_dep.ipynb"),
+    workflow=True,
+)
+def test_two_steps_single_dep_workflow(tb):
     assert tb.cell_output_text(1) == "2"
 
 
@@ -21,7 +28,6 @@ def test_two_steps_single_dep(tb):
     execute=True,
 )
 def test_param_overwrite(tb):
-    tb.on_cell_execute = partial(on_cell_execute, client=tb)
     assert tb.cell_output_text(2) == "3"
 
 
@@ -30,7 +36,6 @@ def test_param_overwrite(tb):
     execute=True,
 )
 def test_simple_scatter_sequence(tb):
-    tb.on_cell_execute = partial(on_cell_execute, client=tb)
     assert tb.cell_execute_result(3) == [{"text/plain": "[4, 5, 6, 7]"}]
 
 
@@ -39,6 +44,5 @@ def test_simple_scatter_sequence(tb):
     execute=True,
 )
 def test_scatter_and_non_scatter_sequences(tb):
-    tb.on_cell_execute = partial(on_cell_execute, client=tb)
     assert tb.cell_execute_result(3) == [{"text/plain": "[4, 5, 6, 7]"}]
     assert tb.cell_execute_result(4) == [{"text/plain": "[4, 5, 6, 7]"}]

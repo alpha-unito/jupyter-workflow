@@ -16,6 +16,7 @@ class testflow(testbook):
         self,
         nb,
         execute=None,
+        workflow=None,
         timeout=60,
         kernel_name="jupyter-workflow",
         allow_errors=False,
@@ -24,3 +25,10 @@ class testflow(testbook):
         super().__init__(nb, execute, timeout, kernel_name, allow_errors, **kwargs)
         self.client.on_cell_execute = partial(on_cell_execute, client=self.client)
         self.client.kernel_manager_class = WorkflowKernelManager
+        self.workflow = workflow
+
+    def _prepare(self):
+        if self.workflow is True:
+            self.client.execute_workflow()
+        else:
+            super()._prepare()
