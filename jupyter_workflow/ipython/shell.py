@@ -7,7 +7,6 @@ from contextvars import ContextVar
 from io import FileIO, TextIOWrapper
 from typing import Any, List, MutableMapping, Tuple, cast
 
-import IPython
 import streamflow.log_handler
 from IPython.core.error import InputRejected
 from IPython.core.interactiveshell import ExecutionResult, softspace
@@ -48,11 +47,11 @@ streamflow.log_handler.defaultStreamHandler.stream = TextIOWrapper(
 
 def _classify_nodes(nodelist, interactivity):
     if interactivity == "last_expr_or_assign":
-        if isinstance(nodelist[-1], IPython.core.interactiveshell._assign_nodes):
+        if isinstance(nodelist[-1], (ast.AugAssign, ast.AnnAssign, ast.Assign)):
             asg = nodelist[-1]
             if isinstance(asg, ast.Assign) and len(asg.targets) == 1:
                 target = asg.targets[0]
-            elif isinstance(asg, IPython.core.interactiveshell._single_targets_nodes):
+            elif isinstance(asg, (ast.AugAssign, ast.AnnAssign)):
                 target = asg.target
             else:
                 target = None
