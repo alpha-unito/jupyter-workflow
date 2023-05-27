@@ -1,5 +1,5 @@
 cloudpickle==2.2.1
-IPython==8.9.0
+IPython==8.13.2
 ipython_genutils==0.2.0
 ipykernel==6.23.1
 jsonref==1.1.0
