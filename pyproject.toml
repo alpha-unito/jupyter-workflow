@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jupyter-workflow"
+authors = [
+    {name = "Iacopo Colonnelli", email = "iacopo.colonnelli@unito.it"}
+]
+description = "Jupyter Workflow Kernel"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "LGPL-3.0-or-later"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Distributed Computing"
+]
+dynamic = ["dependencies", "optional-dependencies", "version"]
+
+[project.scripts]
+jupyter-workflow = "jupyter_workflow.client.cli:main"
+
+[project.urls]
+Homepage = "https://jupyter-workflow.di.unito.it"
+Package = "https://pypi.org/project/jupyter-workflow"
+Repository = "https://github.com/alpha-unito/jupyter-workflow"
+
+[tool.setuptools]
+packages = [
+    "jupyter_workflow",
+    "jupyter_workflow.client",
+    "jupyter_workflow.config",
+    "jupyter_workflow.ipython",
+    "jupyter_workflow.streamflow",
+]
+zip-safe = true
+
+[tool.setuptools.package-data]
+"jupyter_workflow.config" = ["schemas/v1.0/*.json"]
+"jupyter_workflow.ipython" = ["kernelspec/kernel.js"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = "requirements.txt"}
+version = {attr = "jupyter_workflow.version.VERSION"}
+
+[tool.setuptools.dynamic.optional-dependencies]
+bandit = {file = "bandit-requirements.txt"}
+docs = {file = "docs/requirements.txt"}
+lint = {file = "lint-requirements.txt"}
+test = {file = "test-requirements.txt"}
+
+[tool.codespell]
+ignore-words-list = "inout"
+
+[tool.coverage.paths]
+executor = ["jupyter_workflow/streamflow/executor.py", "/tmp/streamflow/*/executor.py"]
+
+[tool.coverage.run]
+branch = true
+source_pkgs = ["jupyter_workflow"]
+
+[tool.coverage.report]
+exclude_lines = [
+    # Exclude not implemented methods
+    "raise NotImplementedError",
+    # Exclude abstract methods
+    "@(abc\\.)?abstractmethod",
+    # Exclude Python script entrypoints
+    "if __name__ == .__main__.:",
+    # Exclude type checking lines
+    "if TYPE_CHECKING:",
+    # Exclude log messages
+    "if logger.isEnabledFor"
+]
+ignore_errors = true
+omit = [
+    "jupyter_workflow/ipython/__main__.py",
+    "tests/*"
+]
