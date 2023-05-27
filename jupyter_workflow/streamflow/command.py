@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import codeop
 import json
 import os
 import tempfile
@@ -8,7 +9,6 @@ from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, List, MutableMapping, Optional, Tuple
 
 import cloudpickle as pickle
-from IPython.core.compilerop import CachingCompiler
 from streamflow.core.deployment import LOCAL_LOCATION, Location
 from streamflow.core.utils import random_name
 from streamflow.core.workflow import Command, CommandOutput, Job, Status, Step
@@ -43,7 +43,7 @@ class JupyterCommand(Command):
         self,
         step: Step,
         ast_nodes: List[Tuple[ast.AST, str]],
-        compiler: CachingCompiler,
+        compiler: codeop.Compile,
         interpreter: str,
         input_tokens: MutableMapping[str, JupyterCommandToken],
         output_tokens: MutableMapping[str, JupyterCommandToken],
@@ -54,7 +54,7 @@ class JupyterCommand(Command):
     ):
         super().__init__(step)
         self.ast_nodes: List[Tuple[ast.AST, str]] = ast_nodes
-        self.compiler: CachingCompiler = compiler
+        self.compiler: codeop.Compile = compiler
         self.interpreter: str = interpreter
         self.input_tokens: MutableMapping[str, JupyterCommandToken] = input_tokens
         self.output_tokens: MutableMapping[str, JupyterCommandToken] = output_tokens

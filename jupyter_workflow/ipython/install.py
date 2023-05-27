@@ -3,8 +3,8 @@ import json
 import os
 import shutil
 import sys
+from tempfile import TemporaryDirectory
 
-from IPython.utils.tempdir import TemporaryDirectory
 from jupyter_client.kernelspec import KernelSpecManager
 
 kernel_json = {

@@ -13,12 +13,6 @@ from jupyter_client.session import extract_header
 from jupyter_workflow.config.validator import validate
 from jupyter_workflow.ipython.shell import StreamFlowInteractiveShell
 
-try:
-    # noinspection PyProtectedMember
-    from IPython.core.interactiveshell import _asyncio_runner
-except ImportError:
-    _asyncio_runner = None
-
 
 class WorkflowIPythonKernel(IPythonKernel):
     # Set StreamFlow shell

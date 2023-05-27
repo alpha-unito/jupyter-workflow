@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import codeop
 import json
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, MutableMapping, Type, cast
+from typing import Any, MutableMapping, cast
 
 import cloudpickle as pickle
-from IPython.core.compilerop import CachingCompiler
 from IPython.core.interactiveshell import softspace
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import (
@@ -217,13 +217,13 @@ class JupyterNotebookStep(BaseStep):
         workflow: Workflow,
         ast_nodes: list[tuple[ast.AST, str]],
         autoawait: bool,
-        compiler: CachingCompiler,
+        compiler: codeop.Compile,
         context_port: ProgramContextPort,
     ):
         super().__init__(name, workflow)
         self.ast_nodes: list[tuple[ast.AST, str]] = ast_nodes
         self.autoawait: bool = autoawait
-        self.compiler: CachingCompiler = compiler
+        self.compiler: codeop.Compile = compiler
         self.output_processors: MutableMapping[str, CommandOutputProcessor] = {}
         self.add_input_port("__context__", context_port)
         self.add_output_port(
@@ -243,9 +243,7 @@ class JupyterNotebookStep(BaseStep):
             workflow=await loading_context.load_workflow(context, row["workflow"]),
             ast_nodes=pickle.loads(params["ast_nodes"]),
             autoawait=params["autoawait"],
-            compiler=cast(
-                Type[CachingCompiler], get_class_from_name(params["compiler"])
-            )(),
+            compiler=get_class_from_name(params["compiler"])(),
             context_port=cast(
                 ProgramContextPort,
                 await loading_context.load_port(context, params["context_port"]),

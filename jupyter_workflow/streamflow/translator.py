@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import codeop
 import hashlib
 import json
 import os
@@ -11,7 +12,6 @@ from typing import (
     MutableSequence,
 )
 
-from IPython.core.compilerop import CachingCompiler
 from IPython.utils.text import DollarFormatter
 from streamflow.core import utils
 from streamflow.core.config import BindingConfig
@@ -125,7 +125,7 @@ def _build_target(
 
 
 def _extract_dependencies(
-    cell_name: str, compiler: CachingCompiler, ast_nodes: list[tuple[ast.AST, str]]
+    cell_name: str, compiler: codeop.Compile, ast_nodes: list[tuple[ast.AST, str]]
 ) -> MutableSequence[str]:
     visitor = DependenciesRetriever(cell_name, compiler)
     for node, _ in ast_nodes:
@@ -206,10 +206,10 @@ class NamesStack:
 
 
 class DependenciesRetriever(ast.NodeVisitor):
-    def __init__(self, cell_name: str, compiler: CachingCompiler):
+    def __init__(self, cell_name: str, compiler: codeop.Compile):
         super().__init__()
         self.cell_name: str = cell_name
-        self.compiler: CachingCompiler = compiler
+        self.compiler: codeop.Compile = compiler
         self.deps: set[str] = set()
         self.names: NamesStack = NamesStack()
 
@@ -348,12 +348,12 @@ class JupyterCell:
         self,
         name: str,
         code: list[tuple[ast.AST, str]],
-        compiler: CachingCompiler,
+        compiler: codeop.Compile,
         metadata: MutableMapping[str, Any] | None = None,
     ):
         self.name: str = name
         self.code: list[tuple[ast.AST, str]] = code
-        self.compiler: CachingCompiler = compiler
+        self.compiler: codeop.Compile = compiler
         self.metadata: MutableMapping[str, Any] | None = metadata or {}
 
 
