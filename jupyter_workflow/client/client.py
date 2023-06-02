@@ -50,6 +50,7 @@ class WorkflowKernelClient(AsyncKernelClient):
         if not isinstance(code, str):
             raise ValueError("code %r must be a string" % code)
         validate_string_dict(user_expressions)
+        workflow = self.metadata.get()
         content = {
             "code": code,
             "silent": silent,
@@ -57,9 +58,12 @@ class WorkflowKernelClient(AsyncKernelClient):
             "user_expressions": user_expressions,
             "allow_stdin": allow_stdin,
             "stop_on_error": stop_on_error,
-            "workflow": self.metadata.get(),
+            "workflow": workflow,
         }
-        msg = self.session.msg("execute_request", content)
+        if workflow.get('step', {}).get('background', False):
+            msg = self.session.msg("background_execute_request", content)
+        else:
+            msg = self.session.msg("execute_request", content)
         self.shell_channel.send(msg)
         return msg["header"]["msg_id"]
 
