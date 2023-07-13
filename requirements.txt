@@ -3,7 +3,7 @@ IPython==8.9.0
 ipython_genutils==0.2.0
 ipykernel==6.23.3
 jsonref==1.1.0
-jsonschema==4.17.3
+jsonschema==4.18.2
 jupyter_client==8.3.0
 nbclient==0.8.0
 nbformat==5.9.1
