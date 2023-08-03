@@ -11,7 +11,6 @@ from traitlets.config import catch_config_error
 from jupyter_workflow.client.client import WorkflowClient
 from jupyter_workflow.version import VERSION
 
-
 aliases = {
     "timeout": "JupyterWorkflowApp.timeout",
     "startup_timeout": "JupyterWorkflowApp.startup_timeout",

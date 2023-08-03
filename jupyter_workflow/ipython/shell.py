@@ -9,7 +9,7 @@ from typing import Any, List, MutableMapping, Tuple, cast
 
 import streamflow.log_handler
 from IPython.core.error import InputRejected
-from IPython.core.interactiveshell import ExecutionResult, softspace
+from IPython.core.interactiveshell import ExecutionResult
 from ipykernel.zmqshell import ZMQInteractiveShell
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
@@ -114,6 +114,8 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
     displayhook_class = Type(StreamFlowShellDisplayHook)
     display_pub_class = Type(StreamFlowDisplayPublisher)
 
+    command_formatter_class = Type("IPython.utils.text.DollarFormatter")
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.context: StreamFlowContext = build_context()
@@ -142,7 +144,11 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
     ):
         # Build the step target from metadata
         cell = JupyterCell(
-            name=cell_name, code=ast_nodes, compiler=compiler, metadata=cell_config
+            name=cell_name,
+            code=ast_nodes,
+            compiler=compiler,
+            command_formatter=self.command_formatter_class(),
+            metadata=cell_config,
         )
         # Create a notebook with a single cell
         notebook = JupyterNotebook([cell])
@@ -226,7 +232,11 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             cell_name = self.compile.cache(code, self.execution_count, raw_code=code)
             code_ast = self.compile.ast_parse(code, filename=cell_name)
             code_ast = self.transform_ast(code_ast)
-            visitor = DependenciesRetriever(cell_name, self.compile)
+            visitor = DependenciesRetriever(
+                cell_name=cell_name,
+                compiler=self.compile,
+                command_formatter=self.command_formatter_class(),
+            )
             for node in code_ast.body:
                 visitor.visit(node)
             result.inputs = list(visitor.deps)
@@ -267,9 +277,6 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                     ast_nodes=to_run,
                     cell_config=cell_config,
                 )
-                # Flush softspace
-                if softspace(sys.stdout, 0):
-                    print()
             except BaseException:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]
@@ -305,6 +312,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                             name=cell_name,
                             code=to_run,
                             compiler=self.compile,
+                            command_formatter=self.command_formatter_class(),
                             metadata=metadata,
                         )
                     )

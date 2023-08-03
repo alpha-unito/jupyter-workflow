@@ -6,17 +6,18 @@ import hashlib
 import json
 import os
 import posixpath
+import string
 from typing import (
     Any,
     MutableMapping,
     MutableSequence,
 )
 
-from IPython.utils.text import DollarFormatter
 from streamflow.core import utils
 from streamflow.core.config import BindingConfig
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import DeploymentConfig, LocalTarget, Target
+from streamflow.core.exception import WorkflowExecutionException
 from streamflow.core.workflow import Port, Step, Token, Workflow
 from streamflow.workflow.combinator import (
     CartesianProductCombinator,
@@ -125,9 +126,14 @@ def _build_target(
 
 
 def _extract_dependencies(
-    cell_name: str, compiler: codeop.Compile, ast_nodes: list[tuple[ast.AST, str]]
+    cell_name: str,
+    compiler: codeop.Compile,
+    command_formatter: string.Formatter | None,
+    ast_nodes: list[tuple[ast.AST, str]],
 ) -> MutableSequence[str]:
-    visitor = DependenciesRetriever(cell_name, compiler)
+    visitor = DependenciesRetriever(
+        cell_name=cell_name, compiler=compiler, command_formatter=command_formatter
+    )
     for node, _ in ast_nodes:
         visitor.visit(node)
     return list(visitor.deps)
@@ -206,10 +212,16 @@ class NamesStack:
 
 
 class DependenciesRetriever(ast.NodeVisitor):
-    def __init__(self, cell_name: str, compiler: codeop.Compile):
+    def __init__(
+        self,
+        cell_name: str,
+        compiler: codeop.Compile,
+        command_formatter: string.Formatter | None = None,
+    ):
         super().__init__()
         self.cell_name: str = cell_name
         self.compiler: codeop.Compile = compiler
+        self.command_formatter: string.Formatter | None = command_formatter
         self.deps: set[str] = set()
         self.names: NamesStack = NamesStack()
 
@@ -283,7 +295,11 @@ class DependenciesRetriever(ast.NodeVisitor):
             isinstance(fields["func"], ast.Attribute)
             and fields["func"].attr == "run_cell_magic"
         ):
-            for _, name, _, _ in DollarFormatter().parse(fields["args"][1].value):
+            if self.command_formatter is None:
+                raise WorkflowExecutionException(
+                    "Attribute `command_formatter` attribute not defined.:"
+                )
+            for _, name, _, _ in self.command_formatter.parse(fields["args"][1].value):
                 if name is not None:
                     self.deps.add(name)
         # Visit other fields
@@ -342,18 +358,20 @@ class DependenciesRetriever(ast.NodeVisitor):
 
 
 class JupyterCell:
-    __slots__ = ("name", "code", "compiler", "metadata")
+    __slots__ = ("name", "code", "compiler", "command_formatter", "metadata")
 
     def __init__(
         self,
         name: str,
         code: list[tuple[ast.AST, str]],
         compiler: codeop.Compile,
+        command_formatter: string.Formatter | None,
         metadata: MutableMapping[str, Any] | None = None,
     ):
         self.name: str = name
         self.code: list[tuple[ast.AST, str]] = code
         self.compiler: codeop.Compile = compiler
+        self.command_formatter: string.Formatter | None = command_formatter
         self.metadata: MutableMapping[str, Any] | None = metadata or {}
 
 
@@ -646,7 +664,12 @@ class JupyterNotebookTranslator:
                 )
         # Retrieve inputs automatically if necessary
         if metadata["step"].get("autoin", True):
-            input_names = _extract_dependencies(cell.name, cell.compiler, cell.code)
+            input_names = _extract_dependencies(
+                cell_name=cell.name,
+                compiler=cell.compiler,
+                command_formatter=cell.command_formatter,
+                ast_nodes=cell.code,
+            )
             for name in input_names:
                 if name not in step.input_ports:
                     input_ports[name] = self._get_source_port(name, workflow)

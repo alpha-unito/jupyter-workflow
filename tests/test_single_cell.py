@@ -23,6 +23,13 @@ def test_interactive_execution(tb):
 
 
 @testflow(get_file("name_deps.ipynb"))
+def test_bash_execution(tb):
+    tb.inject("a = 1")
+    tb.execute_cell("bash_execution")
+    assert tb.cell_output_text("bash_execution") == "1"
+
+
+@testflow(get_file("name_deps.ipynb"))
 def test_list_input_dep(tb):
     tb.inject("a = [1, 2, 3, 4]")
     tb.execute_cell("list_input_dep")
@@ -48,6 +55,16 @@ def test_file_input(tb):
     with open(input_file) as f:
         content = f.read().encode("unicode_escape").decode("utf-8")
         assert tb.cell_execute_result("file_input") == [{"text/plain": f"'{content}'"}]
+
+
+@testflow(get_file("file_deps.ipynb"))
+def test_file_input_bash(tb):
+    input_file = get_file("hello.txt")
+    tb.inject(f'input_file = "{input_file}"')
+    tb.execute_cell("file_input_bash")
+    with open(input_file) as f:
+        content = f.read().encode("unicode_escape").decode("utf-8")
+        assert tb.cell_output_text("file_input_bash") == content.rstrip("\\n")
 
 
 @testflow(get_file("file_deps.ipynb"))
