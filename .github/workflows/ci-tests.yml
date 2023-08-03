@@ -41,6 +41,7 @@ jobs:
             tox.ini
       - name: "Install Python Dependencies and Jupyter Workflow"
         run: |
+          python -m pip install -U pip setuptools wheel
           python -m pip install tox --user
           python -m pip install . --user
       - name: "Run Jupyter Workflow static analysis via Tox"
@@ -68,6 +69,7 @@ jobs:
       - uses: docker/setup-qemu-action@v2
       - name: "Install Python Dependencies and Jupyter Workflow"
         run: |
+          python -m pip install -U pip setuptools wheel
           python -m pip install tox --user
           python -m pip install . --user
       - name: "Run Jupyter Workflow tests via Tox"
