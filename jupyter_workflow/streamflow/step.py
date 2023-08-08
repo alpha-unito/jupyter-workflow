@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 from typing import Any, MutableMapping, cast
 
 import cloudpickle as pickle
-from IPython.core.interactiveshell import softspace
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import (
     WorkflowDefinitionException,
@@ -306,9 +305,6 @@ class JupyterNotebookStep(BaseStep):
             compiler=self.compiler,
             user_ns=user_ns,
         )
-        # Flush softspace
-        if softspace(sys.stdout, 0):
-            print()
         # Propagate the new context
         self.get_output_context_port().put_context(user_ns)
 

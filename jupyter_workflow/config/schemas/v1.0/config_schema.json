@@ -1,13 +1,13 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
   "$id": "config_schema.json",
   "type": "object",
-  "definitions": {
+  "$defs": {
     "deployment": {
-      "$id": "#/definitions/deployment",
+      "$id": "#/$defs/deployment",
       "title": "Deployment",
       "type": "object",
-      "definitions": {},
+      "$defs": {},
       "properties": {
         "external": {
           "type": "boolean",
@@ -30,7 +30,7 @@
       ]
     },
     "scatter": {
-      "$id": "#/definitions/scatter",
+      "$id": "#/$defs/scatter",
       "title": "Scatter",
       "type": "object",
       "properties": {
@@ -77,7 +77,7 @@
               },
               {
                 "type": "object",
-                "$ref": "#/definitions/scatter"
+                "$ref": "#/$defs/scatter"
               }
             ]
           }
@@ -94,7 +94,7 @@
       }
     },
     "serializer": {
-      "$id": "#/definitions/serializer",
+      "$id": "#/$defs/serializer",
       "title": "Serializer",
       "type": "object",
       "properties": {
@@ -115,7 +115,7 @@
       }
     },
     "step": {
-      "$id": "#/definitions/step",
+      "$id": "#/$defs/step",
       "title": "Step",
       "type": "object",
       "properties": {
@@ -144,7 +144,7 @@
                       },
                       {
                         "type": "object",
-                        "$ref": "#/definitions/serializer"
+                        "$ref": "#/$defs/serializer"
                       }
                     ]
                   },
@@ -193,7 +193,7 @@
                       },
                       {
                         "type": "object",
-                        "$ref": "#/definitions/serializer"
+                        "$ref": "#/$defs/serializer"
                       }
                     ]
                   },
@@ -219,7 +219,7 @@
         },
         "scatter": {
           "type": "object",
-          "$ref": "#/definitions/scatter"
+          "$ref": "#/$defs/scatter"
         },
         "workdir": {
           "type": "string",
@@ -230,7 +230,7 @@
       "additionalProperties": false
     },
     "target": {
-      "$id": "#/definitions/target",
+      "$id": "#/$defs/target",
       "title": "Target",
       "type": "object",
       "properties": {
@@ -242,7 +242,7 @@
             },
             {
               "type": "object",
-              "$ref": "#/definitions/deployment"
+              "$ref": "#/$defs/deployment"
             }
           ]
         },
@@ -277,7 +277,7 @@
       "type": "object",
       "patternProperties": {
         "^[a-z][a-zA-Z0-9._-]*$": {
-          "$ref": "#/definitions/deployment"
+          "$ref": "#/$defs/deployment"
         }
       },
       "additionalProperties": false
@@ -287,7 +287,7 @@
       "type": "object",
       "patternProperties": {
         "^[a-z][a-zA-Z0-9._-]*$": {
-          "$ref": "#/definitions/serializer"
+          "$ref": "#/$defs/serializer"
         }
       },
       "additionalProperties": false
@@ -295,12 +295,12 @@
     "step": {
       "$id": "#/properties/step",
       "type": "object",
-      "$ref": "#/definitions/step"
+      "$ref": "#/$defs/step"
     },
     "target": {
       "$id": "#/properties/target",
       "type": "object",
-      "$ref": "#/definitions/target"
+      "$ref": "#/$defs/target"
     },
     "version": {
       "type": "string"
