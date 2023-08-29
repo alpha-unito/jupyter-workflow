@@ -5,5 +5,5 @@ jsonref==1.1.0
 jupyter_client==8.3.0
 nbclient==0.8.0
 nbformat==5.9.2
-streamflow==0.2.0.dev7
+streamflow==0.2.0.dev8
 traitlets==5.9.0
