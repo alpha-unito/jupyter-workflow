@@ -68,3 +68,11 @@ def test_scatter_and_non_scatter_sequences(tb):
 def test_scatter_and_non_scatter_sequences_workflow(tb):
     assert tb.cell_execute_result(3) == [{"text/plain": "[4, 5, 6, 7]"}]
     assert tb.cell_execute_result(4) == [{"text/plain": "[4, 5, 6, 7]"}]
+
+
+@testflow(
+    get_file("background_cell.ipynb"),
+    execute=True,
+)
+def test_background_cell(tb):
+    assert tb.cell_execute_result(3) == [{"text/plain": "Hello, Anonymous"}]
