@@ -1,6 +1,6 @@
 cloudpickle==2.2.1
 ipython_genutils==0.2.0
-ipykernel==6.25.1
+ipykernel==6.29.2
 jsonref==1.1.0
 jupyter_client==8.3.0
 nbclient==0.8.0
