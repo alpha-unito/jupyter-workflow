@@ -17,7 +17,7 @@ jobs:
       - name: "Get Jupyter Workflow version"
         run: echo "JF_VERSION=$(cat jupyter_workflow/version.py | grep -oP '(?<=VERSION = \")(.*)(?=\")')" >> $GITHUB_ENV
       - name: "Check tag existence"
-        uses: mukunku/tag-exists-action@v1.5.0
+        uses: mukunku/tag-exists-action@v1.6.0
         id: check-tag
         with:
           tag: ${{ env.JF_VERSION }}
