@@ -4,9 +4,8 @@ import sys
 from textwrap import dedent
 
 import nbformat
+import traitlets.config
 from jupyter_core.application import JupyterApp
-from traitlets import Bool, Integer, List, Unicode, default
-from traitlets.config import catch_config_error
 
 from jupyter_workflow.client.client import WorkflowClient
 from jupyter_workflow.version import VERSION
@@ -22,13 +21,13 @@ class JupyterWorkflowApp(JupyterApp):
     An application used to execute notebook files (``*.ipynb``) as distributed workflows
     """
 
-    version = Unicode(VERSION)
+    version = traitlets.Unicode(VERSION)
     name = "jupyter-workflow"
     aliases = aliases
 
     description = "An application used to execute notebook files (``*.ipynb``) as distributed workflows"
-    notebooks = List([], help="Path of notebooks to convert").tag(config=True)
-    timeout = Integer(
+    notebooks = traitlets.List([], help="Path of notebooks to convert").tag(config=True)
+    timeout = traitlets.Integer(
         None,
         allow_none=True,
         help=dedent(
@@ -39,7 +38,7 @@ class JupyterWorkflowApp(JupyterApp):
             """
         ),
     ).tag(config=True)
-    startup_timeout = Integer(
+    startup_timeout = traitlets.Integer(
         60,
         help=dedent(
             """
@@ -49,7 +48,7 @@ class JupyterWorkflowApp(JupyterApp):
             """
         ),
     ).tag(config=True)
-    interactive = Bool(
+    interactive = traitlets.Bool(
         False,
         help=dedent(
             """
@@ -60,11 +59,11 @@ class JupyterWorkflowApp(JupyterApp):
         ),
     ).tag(config=True)
 
-    @default("log_level")
+    @traitlets.default("log_level")
     def _log_level_default(self):
         return logging.INFO
 
-    @catch_config_error
+    @traitlets.config.catch_config_error
     def initialize(self, argv=None):
         super().initialize(argv)
         self.notebooks = self.extra_args or self.notebooks
