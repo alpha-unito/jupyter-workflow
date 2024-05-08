@@ -14,11 +14,11 @@ from IPython.core.interactiveshell import ExecutionResult
 from ipykernel.zmqshell import ZMQInteractiveShell
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.deployment import LOCAL_LOCATION, Location
+from streamflow.core.deployment import ExecutionLocation, LOCAL_LOCATION
 from streamflow.core.exception import WorkflowDefinitionException
 from streamflow.core.workflow import Token, Workflow
-from streamflow.data.data_manager import DefaultDataManager
-from streamflow.deployment.deployment_manager import DefaultDeploymentManager
+from streamflow.data import DefaultDataManager
+from streamflow.deployment import DefaultDeploymentManager
 from streamflow.persistence import SqliteDatabase
 from streamflow.recovery.checkpoint_manager import DummyCheckpointManager
 from streamflow.recovery.failure_manager import DummyFailureManager
@@ -120,7 +120,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         super().__init__(**kwargs)
         self.context: StreamFlowContext = build_context()
         self.context.data_manager.register_path(
-            location=Location(LOCAL_LOCATION, os.path.join(executor.__file__)),
+            location=ExecutionLocation(LOCAL_LOCATION, os.path.join(executor.__file__)),
             path=os.path.join(executor.__file__),
             relpath=os.path.basename(executor.__file__),
         )
