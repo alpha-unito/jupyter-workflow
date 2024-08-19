@@ -5,6 +5,7 @@ from contextvars import ContextVar
 from functools import partial
 from typing import Any, MutableMapping, MutableSequence, cast
 
+import traitlets
 from jupyter_client import AsyncKernelClient, AsyncKernelManager, KernelManager
 from jupyter_client.client import validate_string_dict
 from jupyter_core.utils import ensure_async, run_sync
@@ -17,7 +18,6 @@ from nbclient.exceptions import (
 )
 from nbformat import NotebookNode
 from streamflow.core.exception import WorkflowExecutionException
-from traitlets import Type
 
 
 async def on_cell_execute(
@@ -75,7 +75,7 @@ class WorkflowKernelClient(AsyncKernelClient):
 
 
 class WorkflowKernelManager(AsyncKernelManager):
-    client_factory: Type = Type(
+    client_factory: traitlets.Type = traitlets.Type(
         klass="jupyter_workflow.client.client.WorkflowKernelClient"
     )
 

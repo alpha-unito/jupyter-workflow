@@ -8,6 +8,7 @@ from io import FileIO, TextIOWrapper
 from typing import Any, List, MutableMapping, Tuple, cast
 
 import streamflow.log_handler
+import traitlets
 from IPython.core.error import InputRejected
 from IPython.core.interactiveshell import ExecutionResult
 from ipykernel.zmqshell import ZMQInteractiveShell
@@ -24,7 +25,6 @@ from streamflow.recovery.failure_manager import DummyFailureManager
 from streamflow.scheduling.scheduler import DefaultScheduler
 from streamflow.workflow.executor import StreamFlowExecutor
 from streamflow.workflow.utils import get_token_value
-from traitlets import Type, observe
 
 from jupyter_workflow.ipython.displayhook import (
     StreamFlowDisplayPublisher,
@@ -111,10 +111,10 @@ def build_context() -> StreamFlowContext:
 
 
 class StreamFlowInteractiveShell(ZMQInteractiveShell):
-    displayhook_class = Type(StreamFlowShellDisplayHook)
-    display_pub_class = Type(StreamFlowDisplayPublisher)
+    displayhook_class = traitlets.Type(StreamFlowShellDisplayHook)
+    display_pub_class = traitlets.Type(StreamFlowDisplayPublisher)
 
-    command_formatter_class = Type("IPython.utils.text.DollarFormatter")
+    command_formatter_class = traitlets.Type("IPython.utils.text.DollarFormatter")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -202,7 +202,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             # Propagate exception
             raise
 
-    @observe("exit_now")
+    @traitlets.observe("exit_now")
     def _update_exit_now(self, change):
         print(str(change))
         # Undeploy all environments before exiting
