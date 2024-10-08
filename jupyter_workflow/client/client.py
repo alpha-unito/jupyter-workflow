@@ -100,9 +100,9 @@ class WorkflowClient(NotebookClient):
             if msg["parent_header"].get("msg_id") == msg_id:
                 if self.record_timing:
                     for cell in cells:
-                        cell["metadata"]["execution"][
-                            "shell.execute_reply"
-                        ] = timestamp(msg)
+                        cell["metadata"]["execution"]["shell.execute_reply"] = (
+                            timestamp(msg)
+                        )
                 await asyncio.wait_for(task_poll_output_msgs, self.iopub_timeout)
                 task_poll_kernel_alive.cancel()
                 return msg

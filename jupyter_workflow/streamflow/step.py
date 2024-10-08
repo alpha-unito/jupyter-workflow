@@ -154,8 +154,7 @@ class JupyterInputInjectorStep(BaseStep, ABC):
     @abstractmethod
     async def process_input(
         self, job: Job, user_ns: MutableMapping[str, Any], token_value: Any
-    ) -> Token:
-        ...
+    ) -> Token: ...
 
 
 class JupyterFileInputInjectorStep(JupyterInputInjectorStep):
@@ -337,9 +336,9 @@ class JupyterNotebookStep(BaseStep):
         self, name: str, port: Port, output_processor: CommandOutputProcessor = None
     ) -> None:
         super().add_output_port(name, port)
-        self.output_processors[
-            name
-        ] = output_processor or DefaultCommandOutputProcessor(name, self.workflow)
+        self.output_processors[name] = (
+            output_processor or DefaultCommandOutputProcessor(name, self.workflow)
+        )
 
     def get_output_context_port(self) -> ProgramContextPort:
         return cast(ProgramContextPort, self.get_output_port("__context__"))

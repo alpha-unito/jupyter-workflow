@@ -780,24 +780,24 @@ class JupyterNotebookTranslator:
                     # If type is equal to `file`, it refers to a file path in the remote resource
                     if element_type == "file":
                         # Add file output processor to the execute step
-                        step.output_processors[
-                            name
-                        ] = JupyterFileCommandOutputProcessor(
-                            name=name,
-                            workflow=workflow,
-                            value=element.get("value"),
-                            value_from=element.get("valueFrom"),
+                        step.output_processors[name] = (
+                            JupyterFileCommandOutputProcessor(
+                                name=name,
+                                workflow=workflow,
+                                value=element.get("value"),
+                                value_from=element.get("valueFrom"),
+                            )
                         )
                     # If type is equal to `name` or `env`, it refers to a variable
                     elif element_type in ["name", "env"]:
                         # Add name output processor to the execute step
-                        step.output_processors[
-                            name
-                        ] = JupyterNameCommandOutputProcessor(
-                            name=name,
-                            workflow=workflow,
-                            value=element.get("value"),
-                            value_from=element.get("valueFrom", name),
+                        step.output_processors[name] = (
+                            JupyterNameCommandOutputProcessor(
+                                name=name,
+                                workflow=workflow,
+                                value=element.get("value"),
+                                value_from=element.get("valueFrom", name),
+                            )
                         )
                     # If type is equal to `control`, simply add an empty dependency
                     elif element_type == "control":
@@ -816,9 +816,11 @@ class JupyterNotebookTranslator:
                             cell_id=metadata["cell_id"],
                             name=name,
                             port=self.output_ports[name],
-                            depth=len(scatter_inputs)
-                            if scatter_method == "cartesian"
-                            else 1,
+                            depth=(
+                                len(scatter_inputs)
+                                if scatter_method == "cartesian"
+                                else 1
+                            ),
                             workflow=workflow,
                         )
                         # Add list join transformer
