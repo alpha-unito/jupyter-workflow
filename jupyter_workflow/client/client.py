@@ -31,7 +31,7 @@ async def on_cell_execute(
 class WorkflowKernelClient(AsyncKernelClient):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.metadata: ContextVar = ContextVar("metadata", default={})
+        self.metadata: ContextVar = ContextVar("metadata")
 
     def execute(
         self,
@@ -56,7 +56,7 @@ class WorkflowKernelClient(AsyncKernelClient):
             "user_expressions": user_expressions,
             "allow_stdin": allow_stdin,
             "stop_on_error": stop_on_error,
-            "workflow": self.metadata.get(),
+            "workflow": self.metadata.get({}),
         }
         msg = self.session.msg("execute_request", content)
         self.shell_channel.send(msg)
