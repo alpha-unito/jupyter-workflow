@@ -151,7 +151,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             metadata=cell_config,
         )
         # Create a notebook with a single cell
-        notebook = JupyterNotebook([cell])
+        notebook = JupyterNotebook([cell], autoawait=self.autoawait)
         # Translate notebook into workflow
         translator = JupyterNotebookTranslator(context=self.context)
         workflow = await translator.translate(notebook=notebook, user_ns=self.user_ns)
@@ -320,7 +320,9 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 translator = JupyterNotebookTranslator(context=self.context)
                 workflow = await translator.translate(
                     notebook=JupyterNotebook(
-                        cells=jupyter_cells, metadata=notebook.get("metadata")
+                        cells=jupyter_cells,
+                        autoawait=self.autoawait,
+                        metadata=notebook.get("metadata"),
                     ),
                     user_ns=self.user_ns,
                 )
