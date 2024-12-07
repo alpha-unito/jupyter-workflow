@@ -286,7 +286,7 @@ class JupyterCommand(Command):
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=job.output_directory,
-                env={**os.environ, **environment},
+                env=os.environ | environment,
                 stdin=stdin,
                 stdout=stdout,
                 stderr=stderr,
