@@ -31,9 +31,9 @@ class JupyterFileCommandOutputProcessor(CommandOutputProcessor):
             connector=self._get_connector(connector, job),
             job=job,
             locations=await self._get_locations(connector, job),
-            output_directory=self.target.workdir
-            if self.target
-            else job.output_directory,
+            output_directory=(
+                self.target.workdir if self.target else job.output_directory
+            ),
             user_ns=command_output.user_ns,
             value=self.value,
             value_from=self.value_from,

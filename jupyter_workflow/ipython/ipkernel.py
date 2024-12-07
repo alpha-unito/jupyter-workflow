@@ -107,9 +107,7 @@ class WorkflowIPythonKernel(IPythonKernel):
         workflow_config = (
             parent["metadata"]
             if "workflow" in parent["metadata"]
-            else parent["content"]
-            if "workflow" in parent["content"]
-            else None
+            else parent["content"] if "workflow" in parent["content"] else None
         )
         if workflow_config is not None:
             try:
