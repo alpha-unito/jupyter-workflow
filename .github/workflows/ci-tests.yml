@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python: [ "3.8", "3.9", "3.10", "3.11" ]
+        python: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
     env:
       TOXENV: ${{ format('py{0}-unit', matrix.python) }}
     steps:
@@ -64,7 +64,7 @@ jobs:
             tox.ini
       - uses: actions/setup-node@v4
         with:
-          node-version: "15"
+          node-version: "20"
       - uses: docker/setup-qemu-action@v3
       - name: "Install Python Dependencies and Jupyter Workflow"
         run: |

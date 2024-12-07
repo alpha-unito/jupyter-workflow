@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.13"
       - name: "Get Jupyter Workflow version"
         run: echo "JF_VERSION=$(cat jupyter_workflow/version.py | grep -oP '(?<=VERSION = \")(.*)(?=\")')" >> $GITHUB_ENV
       - name: "Get PyPI version"
@@ -53,6 +53,3 @@ jobs:
       - name: "Publish package to PyPI"
         uses: pypa/gh-action-pypi-publish@release/v1
         if: ${{ env.JF_VERSION != env.PYPI_VERSION }}
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_TOKEN }}

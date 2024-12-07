@@ -24,9 +24,7 @@ async def on_cell_execute(
     client: NotebookClient, cell: NotebookNode, cell_index: int
 ) -> None:
     if isinstance(client.kc, WorkflowKernelClient):
-        client.kc.metadata.set(
-            {**cell.metadata.get("workflow", {}), **{"cell_id": cell.id}}
-        )
+        client.kc.metadata.set(cell.metadata.get("workflow", {}) | {"cell_id": cell.id})
 
 
 class WorkflowKernelClient(AsyncKernelClient):
@@ -154,10 +152,8 @@ class WorkflowClient(NotebookClient):
                         cell["metadata"]["execution"] = {}
                     cell = {
                         "code": cell["source"],
-                        "metadata": {
-                            **cell["metadata"].get("workflow", {}),
-                            **{"cell_id": cell.id},
-                        },
+                        "metadata": cell["metadata"].get("workflow", {})
+                        | {"cell_id": cell.id},
                     }
                     cells[index] = cell
 

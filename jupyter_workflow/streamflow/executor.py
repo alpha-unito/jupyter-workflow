@@ -12,14 +12,6 @@ from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, MutableMapping, Tuple, cast
 
-if sys.version_info > (3, 8):
-    from ast import Module
-else:
-    from ast import Module as OriginalModule
-
-    def Module(nodelist, type_ignores):
-        return OriginalModule(nodelist)
-
 
 CELL_OUTPUT = "__JF_CELL_OUTPUT__"
 CELL_STATUS = "__JF_CELL_STATUS__"
@@ -82,7 +74,7 @@ def postload(compiler, name, value, serializer):
             source=serializer["postload"], filename=f"{name}.postload"
         )
         for node in postload_module.body:
-            mod = Module([node], [])
+            mod = ast.Module([node], [])
             code_obj = compiler(mod, "", "exec")  # nosec
             exec(code_obj, {}, serialization_context)  # nosec
         return serialization_context["y"]
@@ -97,7 +89,7 @@ def predump(compiler, name, value, serializer):
             source=serializer["predump"], filename=f"{name}.predump"
         )
         for node in predump_module.body:
-            mod = Module([node], [])
+            mod = ast.Module([node], [])
             code_obj = compiler(mod, "", "exec")  # nosec
             exec(code_obj, {}, serialization_context)  # nosec
         return serialization_context["y"]
@@ -148,7 +140,7 @@ async def run_ast_nodes(
 ):
     for node, mode in ast_nodes:
         if mode == "exec":
-            mod = Module([node], [])
+            mod = ast.Module([node], [])
         elif mode == "single":
             mod = ast.Interactive([node])
         with compiler.extra_flags(
