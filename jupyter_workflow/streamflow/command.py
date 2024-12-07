@@ -9,7 +9,8 @@ from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, List, MutableMapping, Optional, Tuple
 
 import cloudpickle as pickle
-from streamflow.core.deployment import LOCAL_LOCATION, Location
+from streamflow.core.context import StreamFlowContext
+from streamflow.core.deployment import Connector, ExecutionLocation, LOCAL_LOCATION
 from streamflow.core.utils import random_name
 from streamflow.core.workflow import Command, CommandOutput, Job, Status, Step
 from streamflow.data import remotepath
@@ -18,6 +19,24 @@ from streamflow.log_handler import logger
 from streamflow.workflow.utils import get_token_value
 
 from jupyter_workflow.streamflow import executor
+
+
+async def _transfer_data(
+    context: StreamFlowContext,
+    connector: Connector,
+    location: ExecutionLocation,
+    src: str,
+    dst: str,
+    relpath: str,
+):
+    if await remotepath.exists(connector, location, src):
+        context.data_manager.register_path(location=location, path=src, relpath=relpath)
+    await context.data_manager.transfer_data(
+        src_location=location,
+        src_path=src,
+        dst_locations=[ExecutionLocation(LOCAL_LOCATION, LOCAL_LOCATION)],
+        dst_path=dst,
+    )
 
 
 class JupyterCommandOutput(CommandOutput):
@@ -73,13 +92,22 @@ class JupyterCommand(Command):
                 )
                 path_processor = get_path_processor(src_connector)
                 dst_path = os.path.join(d, path_processor.basename(src_path))
-                await self.step.workflow.context.data_manager.transfer_data(
-                    src_locations=self.step.workflow.context.scheduler.get_locations(
-                        job.name
-                    ),
-                    src_path=src_path,
-                    dst_locations=[Location(LOCAL_LOCATION, LOCAL_LOCATION)],
-                    dst_path=dst_path,
+                await asyncio.gather(
+                    *(
+                        asyncio.create_task(
+                            self.step.workflow.context.data_manager.transfer_data(
+                                src_location=location,
+                                src_path=src_path,
+                                dst_locations=[
+                                    ExecutionLocation(LOCAL_LOCATION, LOCAL_LOCATION)
+                                ],
+                                dst_path=dst_path,
+                            )
+                        )
+                        for location in self.step.workflow.context.scheduler.get_locations(
+                            job.name
+                        )
+                    )
                 )
                 with open(dst_path, "rb") as f:
                     namespace = pickle.load(f)
@@ -90,15 +118,24 @@ class JupyterCommand(Command):
                             dst_path = os.path.join(
                                 mkdtemp(), path_processor.basename(namespace[name])
                             )
-                            await self.step.workflow.context.data_manager.transfer_data(
-                                src_locations=self.step.workflow.context.scheduler.get_locations(
-                                    job.name
-                                ),
-                                src_path=namespace[name],
-                                dst_locations=[
-                                    Location(LOCAL_LOCATION, LOCAL_LOCATION)
-                                ],
-                                dst_path=dst_path,
+                            await asyncio.gather(
+                                *(
+                                    asyncio.create_task(
+                                        self.step.workflow.context.data_manager.transfer_data(
+                                            src_location=location,
+                                            src_path=namespace[name],
+                                            dst_locations=[
+                                                ExecutionLocation(
+                                                    LOCAL_LOCATION, LOCAL_LOCATION
+                                                )
+                                            ],
+                                            dst_path=dst_path,
+                                        )
+                                    )
+                                    for location in self.step.workflow.context.scheduler.get_locations(
+                                        job.name
+                                    )
+                                )
                             )
                             namespace[name] = dst_path
                 return {
@@ -138,7 +175,7 @@ class JupyterCommand(Command):
             pickle.dump(element, f)
             f.flush()
         self.step.workflow.context.data_manager.register_path(
-            location=Location(LOCAL_LOCATION, LOCAL_LOCATION),
+            location=ExecutionLocation(LOCAL_LOCATION, LOCAL_LOCATION),
             path=src_path,
             relpath=os.path.basename(src_path),
         )
@@ -149,7 +186,7 @@ class JupyterCommand(Command):
         path_processor = get_path_processor(dst_connector)
         dst_path = path_processor.join(job.input_directory, os.path.basename(path))
         await self.step.workflow.context.data_manager.transfer_data(
-            src_locations=[Location(LOCAL_LOCATION, LOCAL_LOCATION)],
+            src_location=ExecutionLocation(LOCAL_LOCATION, LOCAL_LOCATION),
             src_path=path,
             dst_locations=self.step.workflow.context.scheduler.get_locations(job.name),
             dst_path=dst_path,
@@ -302,16 +339,20 @@ class JupyterCommand(Command):
         # Retrieve outputs
         dst_dir = tempfile.mkdtemp()
         dst_path = os.path.join(dst_dir, path_processor.basename(output_path))
-        for location in locations:
-            if await remotepath.exists(connector, location, output_path):
-                self.step.workflow.context.data_manager.register_path(
-                    location=location, path=output_path, relpath=output_name
+        await asyncio.gather(
+            *(
+                asyncio.create_task(
+                    _transfer_data(
+                        context=self.step.workflow.context,
+                        connector=connector,
+                        location=location,
+                        src=output_path,
+                        dst=dst_path,
+                        relpath=output_name,
+                    )
                 )
-        await self.step.workflow.context.data_manager.transfer_data(
-            src_locations=locations,
-            src_path=output_path,
-            dst_locations=[Location(LOCAL_LOCATION, LOCAL_LOCATION)],
-            dst_path=dst_path,
+                for location in locations
+            )
         )
         with open(dst_path) as f:
             json_output = json.load(f)

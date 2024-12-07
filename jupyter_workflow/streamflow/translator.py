@@ -11,6 +11,7 @@ from typing import (
     Any,
     MutableMapping,
     MutableSequence,
+    cast,
 )
 
 from streamflow.core import utils
@@ -19,6 +20,7 @@ from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import DeploymentConfig, LocalTarget, Target
 from streamflow.core.exception import WorkflowExecutionException
 from streamflow.core.workflow import Port, Step, Token, Workflow
+from streamflow.cwl.transformer import DotProductSizeTransformer
 from streamflow.workflow.combinator import (
     CartesianProductCombinator,
     DotProductCombinator,
@@ -61,7 +63,12 @@ def _add_gather_step(
     cell_id: str, name: str, port: Port, depth: int, workflow: Workflow
 ):
     gather_step = workflow.create_step(
-        cls=GatherStep, name=posixpath.join(cell_id, name, "__gather__"), depth=depth
+        cls=GatherStep,
+        name=posixpath.join(cell_id, name, "__gather__"),
+        size_port=cast(
+            ScatterStep, workflow.steps[posixpath.join(cell_id, name, "__scatter__")]
+        ).get_size_port(),
+        depth=depth,
     )
     gather_step.add_input_port(name, port)
     gather_step.add_output_port(name, workflow.create_port())
@@ -578,6 +585,7 @@ class JupyterNotebookTranslator:
         metadata: MutableMapping[str, Any] | None,
         autoawait: bool = False,
     ) -> Step:
+        cell_id = metadata["cell_id"]
         # Build execution target
         target = metadata.get("target")
         if target is not None:
@@ -608,23 +616,23 @@ class JupyterNotebookTranslator:
         # Create a schedule step and connect it to the DeployStep
         schedule_step = workflow.create_step(
             cls=ScheduleStep,
-            name=posixpath.join(metadata["cell_id"], "__schedule__"),
+            name=posixpath.join(cell_id, "__schedule__"),
             connector_ports={target.deployment.name: deploy_step.get_output_port()},
             binding_config=BindingConfig(targets=[target]),
         )
         # Create the ExecuteStep and connect it to the ScheduleStep
         step = workflow.create_step(
             cls=ExecuteStep,
-            name=metadata["cell_id"],
+            name=cell_id,
             job_port=schedule_step.get_output_port(),
         )
         # Process cell inputs
         cell_inputs = metadata["step"].get("in", [])
         scatter_inputs = _get_scatter_inputs(metadata["step"].get("scatter"))
         scatter_method = metadata["step"].get("scatter", {}).get("method", "cartesian")
-        file_inputs = {}
-        input_ports = {}
-        input_tokens = {}
+        file_inputs = cast(MutableMapping[str, Any], {})
+        input_ports = cast(MutableMapping[str, Port], {})
+        input_tokens = cast(MutableMapping[str, JupyterCommandToken], {})
         for element in cell_inputs:
             # If is a string, it refers to the name of a variable
             if isinstance(element, str):
@@ -637,7 +645,7 @@ class JupyterNotebookTranslator:
                 # Add scatter step if needed
                 if name in scatter_inputs:
                     input_ports[name] = _add_scatter_step(
-                        cell_id=metadata["cell_id"],
+                        cell_id=cell_id,
                         name=name,
                         port=input_ports[name],
                         split=scatter_inputs[name],
@@ -676,7 +684,7 @@ class JupyterNotebookTranslator:
                     # Add scatter step if needed
                     if name in scatter_inputs:
                         input_ports[name] = _add_scatter_step(
-                            cell_id=metadata["cell_id"],
+                            cell_id=cell_id,
                             name=name,
                             port=input_ports[name],
                             split=scatter_inputs[name],
@@ -692,14 +700,19 @@ class JupyterNotebookTranslator:
                     )
         # Add scatter combinator if present
         scatter_combinator = None
+        scatter_size_transformer = None
         if len(scatter_inputs) > 1:
             if scatter_method == "dotproduct":
                 scatter_combinator = DotProductCombinator(
-                    workflow=workflow, name="scatter-combinator"
+                    workflow=workflow, name=cell_id + "-scatter-combinator"
+                )
+                scatter_size_transformer = workflow.create_step(
+                    cls=DotProductSizeTransformer,
+                    name=cell_id + "-scatter-size-transformer",
                 )
             else:
                 scatter_combinator = CartesianProductCombinator(
-                    workflow=workflow, name="scatter-combinator"
+                    workflow=workflow, name=cell_id + "-scatter-combinator"
                 )
             _process_scatter_entries(
                 entries=metadata["step"]["scatter"]["items"],
@@ -711,7 +724,7 @@ class JupyterNotebookTranslator:
         # If there are both scatter and non-scatter inputs
         if len(scatter_inputs) < len(input_ports):
             dot_product_combinator = DotProductCombinator(
-                workflow=workflow, name=metadata["cell_id"] + "-dot-product-combinator"
+                workflow=workflow, name=cell_id + "-dot-product-combinator"
             )
             if scatter_combinator:
                 dot_product_combinator.add_combinator(
@@ -728,13 +741,26 @@ class JupyterNotebookTranslator:
         if scatter_combinator:
             combinator_step = workflow.create_step(
                 cls=CombinatorStep,
-                name=posixpath.join(metadata["cell_id"], "__combinator__"),
+                name=posixpath.join(cell_id, "__combinator__"),
                 combinator=scatter_combinator,
             )
             for port_name, port in input_ports.items():
                 combinator_step.add_input_port(port_name, port)
                 combinator_step.add_output_port(port_name, workflow.create_port())
                 input_ports[port_name] = combinator_step.get_output_port(port_name)
+            if scatter_size_transformer:
+                for name in scatter_inputs:
+                    scatter_size_transformer.add_input_port(
+                        name,
+                        cast(
+                            ScatterStep,
+                            workflow.steps[
+                                posixpath.join(cell_id, name, "__scatter__")
+                            ],
+                        ).get_size_port(),
+                    )
+                size_port = workflow.create_port()
+                scatter_size_transformer.add_output_port("__size__", size_port)
         # Add input ports to the schedule step
         for port_name, port in input_ports.items():
             schedule_step.add_input_port(port_name, port)
@@ -743,7 +769,7 @@ class JupyterNotebookTranslator:
             # Add transfer step
             transfer_step = workflow.create_step(
                 cls=JupyterTransferStep,
-                name=posixpath.join(metadata["cell_id"], name, "__transfer__"),
+                name=posixpath.join(cell_id, name, "__transfer__"),
                 job_port=schedule_step.get_output_port(),
             )
             transfer_step.add_input_port(name, input_ports[name])
@@ -762,7 +788,7 @@ class JupyterNotebookTranslator:
                 # Otherwise it must be a dictionary
                 if isinstance(element, MutableMapping):
                     # Create port
-                    name = element.get("name") or element.get("valueFrom")
+                    name = cast(str, element.get("name") or element.get("valueFrom"))
                     self.output_ports[name] = workflow.create_port()
                     step.add_output_port(name, self.output_ports[name])
                     # Get serializer if present
@@ -813,7 +839,7 @@ class JupyterNotebookTranslator:
                     if scatter_inputs:
                         # Add gather step
                         self.output_ports[name] = _add_gather_step(
-                            cell_id=metadata["cell_id"],
+                            cell_id=cell_id,
                             name=name,
                             port=self.output_ports[name],
                             depth=(
@@ -826,7 +852,7 @@ class JupyterNotebookTranslator:
                         # Add list join transformer
                         transformer_step = workflow.create_step(
                             cls=ListJoinTransformer,
-                            name=posixpath.join(metadata["cell_id"], name, "__join__"),
+                            name=posixpath.join(cell_id, name, "__join__"),
                         )
                         transformer_step.add_input_port(name, self.output_ports[name])
                         transformer_step.add_output_port(name, workflow.create_port())
@@ -845,12 +871,15 @@ class JupyterNotebookTranslator:
             )
         else:
             ipython_out_port = step.get_output_port("Out")
-        log_ports = {executor.CELL_OUTPUT: output_log_port, "Out": ipython_out_port}
+        log_ports = cast(
+            MutableMapping[str, Port],
+            {executor.CELL_OUTPUT: output_log_port, "Out": ipython_out_port},
+        )
         if scatter_inputs:
             for log_port_name in log_ports:
                 # Add gather step
                 gather_output_port = _add_gather_step(
-                    cell_id=metadata["cell_id"],
+                    cell_id=cell_id,
                     name=log_port_name,
                     port=step.get_output_port(log_port_name),
                     depth=len(scatter_inputs) if scatter_method == "cartesian" else 1,
@@ -859,7 +888,7 @@ class JupyterNotebookTranslator:
                 # Add string join transformer
                 transformer_step = workflow.create_step(
                     cls=OutputJoinTransformer,
-                    name=posixpath.join(metadata["cell_id"], log_port_name, "__join__"),
+                    name=posixpath.join(cell_id, log_port_name, "__join__"),
                 )
                 transformer_step.add_input_port(log_port_name, gather_output_port)
                 transformer_step.add_output_port(log_port_name, workflow.create_port())
