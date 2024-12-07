@@ -6,7 +6,8 @@ import codeop
 import json
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, MutableMapping, cast
+from typing import Any, cast
+from collections.abc import MutableMapping
 
 import cloudpickle as pickle
 from streamflow.core.context import StreamFlowContext
@@ -86,14 +87,11 @@ class JupyterInputInjectorStep(BaseStep, ABC):
     async def _save_additional_params(
         self, context: StreamFlowContext
     ) -> MutableMapping[str, Any]:
-        return {
-            **await super()._save_additional_params(context),
-            **{
-                "context_port": self.get_input_port("__context__").persistent_id,
-                "job_port": self.get_input_port("__job__").persistent_id,
-                "value": self.value,
-                "value_from": self.value_from,
-            },
+        return await super()._save_additional_params(context) | {
+            "context_port": self.get_input_port("__context__").persistent_id,
+            "job_port": self.get_input_port("__job__").persistent_id,
+            "value": self.value,
+            "value_from": self.value_from,
         }
 
     def add_output_port(self, name: str, port: Port) -> None:
@@ -309,25 +307,22 @@ class JupyterNotebookStep(BaseStep):
     async def _save_additional_params(
         self, context: StreamFlowContext
     ) -> MutableMapping[str, Any]:
-        return {
-            **await super()._save_additional_params(context),
-            **{
-                "ast_nodes": pickle.dumps(self.ast_nodes),
-                "autoawait": self.autoawait,
-                "compiler": get_class_fullname(type(self.compiler)),
-                "context_port": self.get_input_port("__context__").persistent_id,
-                "output_processors": {
-                    k: v
-                    for k, v in zip(
-                        self.output_processors.keys(),
-                        await asyncio.gather(
-                            *(
-                                asyncio.create_task(p.save(context))
-                                for p in self.output_processors.values()
-                            )
-                        ),
-                    )
-                },
+        return await super()._save_additional_params(context) | {
+            "ast_nodes": pickle.dumps(self.ast_nodes),
+            "autoawait": self.autoawait,
+            "compiler": get_class_fullname(type(self.compiler)),
+            "context_port": self.get_input_port("__context__").persistent_id,
+            "output_processors": {
+                k: v
+                for k, v in zip(
+                    self.output_processors.keys(),
+                    await asyncio.gather(
+                        *(
+                            asyncio.create_task(p.save(context))
+                            for p in self.output_processors.values()
+                        )
+                    ),
+                )
             },
         }
 

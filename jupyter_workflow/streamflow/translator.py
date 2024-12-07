@@ -10,10 +10,9 @@ import string
 from collections import deque
 from typing import (
     Any,
-    MutableMapping,
-    MutableSequence,
     cast,
 )
+from collections.abc import MutableMapping, MutableSequence
 
 from streamflow.core import utils
 from streamflow.core.config import BindingConfig
@@ -627,10 +626,7 @@ class JupyterNotebookTranslator:
         target = metadata.get("target")
         if target is not None:
             if isinstance(target["deployment"], str):
-                target = {
-                    **target,
-                    **{"deployment": metadata["deployments"][target["deployment"]]},
-                }
+                target |= {"deployment": metadata["deployments"][target["deployment"]]}
             deployment_name = hashlib.new(
                 name="md5",
                 data=json.dumps(
@@ -978,7 +974,7 @@ class JupyterNotebookTranslator:
                 await self._translate_streamflow_cell(
                     workflow=workflow,
                     cell=cell,
-                    metadata={**notebook.metadata, **cell.metadata},
+                    metadata=notebook.metadata | cell.metadata,
                     autoawait=notebook.autoawait,
                 )
                 # Inject inputs from program context

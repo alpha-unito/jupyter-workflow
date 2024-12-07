@@ -1,5 +1,6 @@
 import json
-from typing import Any, MutableMapping, MutableSequence
+from typing import Any
+from collections.abc import MutableMapping, MutableSequence
 
 from cloudpickle import dumps, loads
 from streamflow.core.context import StreamFlowContext

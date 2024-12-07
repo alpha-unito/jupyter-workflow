@@ -202,7 +202,7 @@ def patched_run(self, schema, pointer=''):
             if prop in schema['properties']:
                 props[prop] = schema['properties'][prop]
                 del schema['properties'][prop]
-        schema['properties'] = {**props, **schema['properties']}
+        schema['properties'] = props | schema['properties']
     return original_run(self, schema, pointer)
 
 

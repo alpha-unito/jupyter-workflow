@@ -1,11 +1,12 @@
 import json
 import posixpath
+from collections.abc import MutableMapping
+
 from importlib_resources import files
 from referencing import Registry, Resource
 from streamflow.core.context import SchemaEntity
 from streamflow.core.exception import WorkflowDefinitionException
 from streamflow.deployment.connector import connector_classes
-from typing import MutableMapping, Type
 
 _CONFIGS = {
     "v1.0": "https://jupyter-workflow.di.unito.it/config/schemas/v1.0/config_schema.json"
@@ -44,7 +45,7 @@ class JfSchema:
 
     def inject_ext(
         self,
-        classes: MutableMapping[str, Type[SchemaEntity]],
+        classes: MutableMapping[str, type[SchemaEntity]],
         definition_name: str,
     ):
         for name, entity in classes.items():

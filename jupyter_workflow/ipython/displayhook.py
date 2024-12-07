@@ -1,6 +1,6 @@
 from contextvars import ContextVar
 from functools import partial
-from typing import MutableMapping
+from collections.abc import MutableMapping
 
 from ipykernel.displayhook import ZMQShellDisplayHook
 from ipykernel.zmqshell import ZMQDisplayPublisher

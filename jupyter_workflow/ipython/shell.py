@@ -3,9 +3,10 @@ import asyncio
 import os
 import posixpath
 import sys
+from collections.abc import MutableMapping
 from contextvars import ContextVar
 from io import FileIO, TextIOWrapper
-from typing import Any, List, MutableMapping, Tuple, cast
+from typing import Any, cast
 
 import streamflow.log_handler
 import traitlets
@@ -139,7 +140,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         self,
         cell_name: str,
         compiler,
-        ast_nodes: List[Tuple[ast.AST, str]],
+        ast_nodes: list[tuple[ast.AST, str]],
         cell_config: MutableMapping[str, Any],
     ):
         # Build the step target from metadata
@@ -258,7 +259,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
     # noinspection PyProtectedMember
     async def run_ast_nodes(
         self,
-        nodelist: List[ast.stmt],
+        nodelist: list[ast.stmt],
         cell_name: str,
         interactivity="last_expr",
         compiler=compile,
