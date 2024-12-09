@@ -1,10 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2019-09/schema",
-  "$id": "config_schema.json",
+  "$id": "https://jupyter-workflow.di.unito.it/config/schemas/v1.0/config_schema.json",
   "type": "object",
   "$defs": {
     "deployment": {
-      "$id": "#/$defs/deployment",
       "title": "Deployment",
       "type": "object",
       "$defs": {},
@@ -30,7 +29,6 @@
       ]
     },
     "scatter": {
-      "$id": "#/$defs/scatter",
       "title": "Scatter",
       "type": "object",
       "properties": {
@@ -94,7 +92,6 @@
       }
     },
     "serializer": {
-      "$id": "#/$defs/serializer",
       "title": "Serializer",
       "type": "object",
       "properties": {
@@ -115,7 +112,6 @@
       }
     },
     "step": {
-      "$id": "#/$defs/step",
       "title": "Step",
       "type": "object",
       "properties": {
@@ -230,12 +226,10 @@
       "additionalProperties": false
     },
     "target": {
-      "$id": "#/$defs/target",
       "title": "Target",
       "type": "object",
       "properties": {
         "deployment": {
-          "$id": "#/properties/deployment",
           "oneOf": [
             {
               "type": "string"
@@ -268,12 +262,10 @@
   },
   "properties": {
     "interpreter": {
-      "$id": "#/properties/interpreter",
       "type": "string",
       "default": "ipython"
     },
     "deployments": {
-      "$id": "#/properties/deployments",
       "type": "object",
       "patternProperties": {
         "^[a-z][a-zA-Z0-9._-]*$": {
@@ -283,7 +275,6 @@
       "additionalProperties": false
     },
     "serializers": {
-      "$id": "#/properties/serializers",
       "type": "object",
       "patternProperties": {
         "^[a-z][a-zA-Z0-9._-]*$": {
@@ -293,12 +284,10 @@
       "additionalProperties": false
     },
     "step": {
-      "$id": "#/properties/step",
       "type": "object",
       "$ref": "#/$defs/step"
     },
     "target": {
-      "$id": "#/properties/target",
       "type": "object",
       "$ref": "#/$defs/target"
     },

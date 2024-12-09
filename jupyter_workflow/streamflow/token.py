@@ -18,7 +18,7 @@ async def _get_file_token_weight(
     weight = 0
     for path in paths:
         data_locations = context.data_manager.get_data_locations(
-            path=path, location_type=DataType.PRIMARY
+            path=path, data_type=DataType.PRIMARY
         )
         if data_locations:
             connector = context.deployment_manager.get_connector(
@@ -26,9 +26,9 @@ async def _get_file_token_weight(
             )
             location = list(data_locations)[0]
             real_path = await remotepath.follow_symlink(
-                context, connector, location, path
+                context, connector, location.location, path
             )
-            weight += await remotepath.size(connector, location, real_path)
+            weight += await remotepath.size(connector, location.location, real_path)
     return weight
 
 
