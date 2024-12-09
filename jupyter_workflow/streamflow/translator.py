@@ -60,14 +60,12 @@ from jupyter_workflow.streamflow.utils import get_deploy_step
 
 
 def _add_gather_step(
-    cell_id: str, name: str, port: Port, depth: int, workflow: Workflow
+    cell_id: str, name: str, port: Port, depth: int, size_port: Port, workflow: Workflow
 ):
     gather_step = workflow.create_step(
         cls=GatherStep,
         name=posixpath.join(cell_id, name, "__gather__"),
-        size_port=cast(
-            ScatterStep, workflow.steps[posixpath.join(cell_id, name, "__scatter__")]
-        ).get_size_port(),
+        size_port=size_port,
         depth=depth,
     )
     gather_step.add_input_port(name, port)
@@ -284,7 +282,7 @@ class DependenciesRetriever(ast.NodeVisitor):
         # Add arg to context
         self.names.add_name(fields["arg"])
         del fields["arg"]
-        # Fisit other fields
+        # Visit other fields
         self._visit_fields(fields)
 
     def visit_Assign(self, node) -> Any:
@@ -400,7 +398,7 @@ class JupyterNotebookTranslator:
     def __init__(self, context: StreamFlowContext, output_directory: str | None = None):
         self.context: StreamFlowContext = context
         self.deployment_map: MutableMapping[str, DeployStep] = {}
-        self.ouput_directory: str = (
+        self.output_directory: str = (
             output_directory if output_directory is not None else os.getcwd()
         )
         self.output_ports: MutableMapping[str, Any] = {}
@@ -701,6 +699,7 @@ class JupyterNotebookTranslator:
         # Add scatter combinator if present
         scatter_combinator = None
         scatter_size_transformer = None
+        size_port = None
         if len(scatter_inputs) > 1:
             if scatter_method == "dotproduct":
                 scatter_combinator = DotProductCombinator(
@@ -761,6 +760,14 @@ class JupyterNotebookTranslator:
                     )
                 size_port = workflow.create_port()
                 scatter_size_transformer.add_output_port("__size__", size_port)
+        # Scatter on a single input or on multiple inputs with `CartesianProduct` scatterMethod
+        if len(scatter_inputs) > 0 and size_port is None:
+            size_port = cast(
+                ScatterStep,
+                workflow.steps[
+                    posixpath.join(cell_id, next(iter(scatter_inputs)), "__scatter__")
+                ],
+            ).get_size_port()
         # Add input ports to the schedule step
         for port_name, port in input_ports.items():
             schedule_step.add_input_port(port_name, port)
@@ -847,6 +854,7 @@ class JupyterNotebookTranslator:
                                 if scatter_method == "cartesian"
                                 else 1
                             ),
+                            size_port=size_port,
                             workflow=workflow,
                         )
                         # Add list join transformer
@@ -883,6 +891,7 @@ class JupyterNotebookTranslator:
                     name=log_port_name,
                     port=step.get_output_port(log_port_name),
                     depth=len(scatter_inputs) if scatter_method == "cartesian" else 1,
+                    size_port=size_port,
                     workflow=workflow,
                 )
                 # Add string join transformer
@@ -939,10 +948,10 @@ class JupyterNotebookTranslator:
                     autoawait=notebook.autoawait,
                     context_port=context_port,
                 )
-                # Reset output poirts dictionary
+                # Reset output ports dictionary
                 self.output_ports = {}
         # Apply rewrite rules
-        self._optimize_scatter(workflow)
+        # self._optimize_scatter(workflow)
         # Set workflow outputs
         for port_name, port in self.output_ports.items():
             step_name = next(
