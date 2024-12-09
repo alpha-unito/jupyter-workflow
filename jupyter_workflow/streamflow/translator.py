@@ -20,7 +20,10 @@ from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import DeploymentConfig, LocalTarget, Target
 from streamflow.core.exception import WorkflowExecutionException
 from streamflow.core.workflow import Port, Step, Token, Workflow
-from streamflow.cwl.transformer import DotProductSizeTransformer
+from streamflow.cwl.transformer import (
+    DotProductSizeTransformer,
+    CartesianProductSizeTransformer,
+)
 from streamflow.workflow.combinator import (
     CartesianProductCombinator,
     DotProductCombinator,
@@ -713,6 +716,10 @@ class JupyterNotebookTranslator:
                 scatter_combinator = CartesianProductCombinator(
                     workflow=workflow, name=cell_id + "-scatter-combinator"
                 )
+                scatter_size_transformer = workflow.create_step(
+                    cls=CartesianProductSizeTransformer,
+                    name=cell_id + "-scatter-size-transformer",
+                )
             _process_scatter_entries(
                 entries=metadata["step"]["scatter"]["items"],
                 combinator=scatter_combinator,
@@ -760,8 +767,8 @@ class JupyterNotebookTranslator:
                     )
                 size_port = workflow.create_port()
                 scatter_size_transformer.add_output_port("__size__", size_port)
-        # Scatter on a single input or on multiple inputs with `CartesianProduct` scatterMethod
-        if len(scatter_inputs) > 0 and size_port is None:
+        # Scatter on a single input
+        if len(scatter_inputs) == 1:
             size_port = cast(
                 ScatterStep,
                 workflow.steps[
