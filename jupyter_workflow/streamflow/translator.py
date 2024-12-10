@@ -7,6 +7,7 @@ import json
 import os
 import posixpath
 import string
+from collections import deque
 from typing import (
     Any,
     MutableMapping,
@@ -21,8 +22,8 @@ from streamflow.core.deployment import DeploymentConfig, LocalTarget, Target
 from streamflow.core.exception import WorkflowExecutionException
 from streamflow.core.workflow import Port, Step, Token, Workflow
 from streamflow.cwl.transformer import (
-    DotProductSizeTransformer,
     CartesianProductSizeTransformer,
+    DotProductSizeTransformer,
 )
 from streamflow.workflow.combinator import (
     CartesianProductCombinator,
@@ -133,6 +134,20 @@ def _build_target(
     )
 
 
+def _delete_size_chain(root_size_port: Port, workflow: Workflow):
+    size_ports = deque([root_size_port])
+    while size_ports:
+        size_port = size_ports.popleft()
+        for step in size_port.get_output_steps():
+            if isinstance(
+                step, (CartesianProductSizeTransformer, DotProductSizeTransformer)
+            ):
+                for inner_size_port in step.get_output_ports().values():
+                    size_ports.append(inner_size_port)
+                del workflow.steps[step.name]
+        del workflow.ports[size_port.name]
+
+
 def _extract_dependencies(
     cell_name: str,
     compiler: codeop.Compile,
@@ -145,6 +160,20 @@ def _extract_dependencies(
     for node, _ in ast_nodes:
         visitor.visit(node)
     return list(visitor.deps)
+
+
+def _get_gather_steps(scatter_step: ScatterStep) -> MutableSequence[Step]:
+    gather_steps = []
+    ports = [scatter_step.get_size_port()]
+    while ports:
+        for step in ports.pop().get_output_steps():
+            if isinstance(
+                step, (CartesianProductSizeTransformer, DotProductSizeTransformer)
+            ):
+                ports.append(step.get_output_port())
+            elif isinstance(step, GatherStep):
+                gather_steps.append(step)
+    return gather_steps
 
 
 def _get_scatter_inputs(
@@ -536,6 +565,10 @@ class JupyterNotebookTranslator:
         for i in range(len(scatter_steps)):
             input_port = gather_steps[i].get_input_port()
             output_port = scatter_steps[i].get_output_port()
+            # Fix `size` port of the orphan `gather` steps
+            upper_size_port = cast(GatherStep, gather_steps[i]).get_size_port()
+            for gather_step in _get_gather_steps(cast(ScatterStep, scatter_steps[i])):
+                gather_step.add_input_port("__size__", upper_size_port)
             # Relink steps
             for step in output_port.get_output_steps():
                 for port_name, port in step.get_input_ports().items():
@@ -554,6 +587,9 @@ class JupyterNotebookTranslator:
             del workflow.ports[split_steps[i].get_output_port().name]
             del workflow.steps[split_steps[i].name]
             del workflow.ports[scatter_steps[i].get_output_port().name]
+            _delete_size_chain(
+                cast(ScatterStep, scatter_steps[i]).get_size_port(), workflow
+            )
             del workflow.steps[scatter_steps[i].name]
 
     async def _translate_jupyter_cell(
@@ -618,6 +654,7 @@ class JupyterNotebookTranslator:
         schedule_step = workflow.create_step(
             cls=ScheduleStep,
             name=posixpath.join(cell_id, "__schedule__"),
+            job_prefix=cell_id,
             connector_ports={target.deployment.name: deploy_step.get_output_port()},
             binding_config=BindingConfig(targets=[target]),
         )
@@ -958,7 +995,7 @@ class JupyterNotebookTranslator:
                 # Reset output ports dictionary
                 self.output_ports = {}
         # Apply rewrite rules
-        # self._optimize_scatter(workflow)
+        self._optimize_scatter(workflow)
         # Set workflow outputs
         for port_name, port in self.output_ports.items():
             step_name = next(
