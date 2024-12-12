@@ -1,7 +1,8 @@
 import asyncio
 import builtins
 import posixpath
-from typing import Any, MutableMapping, MutableSequence
+from typing import Any
+from collections.abc import MutableMapping, MutableSequence
 
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext

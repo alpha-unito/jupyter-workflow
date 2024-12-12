@@ -1,4 +1,5 @@
-from typing import Any, MutableMapping
+from typing import Any
+from collections.abc import MutableMapping
 
 from jsonschema.validators import validator_for
 

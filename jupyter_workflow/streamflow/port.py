@@ -1,4 +1,5 @@
-from typing import Any, MutableMapping, Optional
+from typing import Any, Optional
+from collections.abc import MutableMapping
 
 from streamflow.core.workflow import Port
 from streamflow.workflow.token import TerminationToken

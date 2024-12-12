@@ -8,18 +8,10 @@ import io
 import json
 import sys
 import traceback
+from collections.abc import MutableMapping
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, MutableMapping, Tuple, cast
-
-if sys.version_info > (3, 8):
-    from ast import Module
-else:
-    from ast import Module as OriginalModule
-
-    def Module(nodelist, type_ignores):
-        return OriginalModule(nodelist)
-
+from typing import Any, cast
 
 CELL_OUTPUT = "__JF_CELL_OUTPUT__"
 CELL_STATUS = "__JF_CELL_STATUS__"
@@ -82,7 +74,7 @@ def postload(compiler, name, value, serializer):
             source=serializer["postload"], filename=f"{name}.postload"
         )
         for node in postload_module.body:
-            mod = Module([node], [])
+            mod = ast.Module([node], [])
             code_obj = compiler(mod, "", "exec")  # nosec
             exec(code_obj, {}, serialization_context)  # nosec
         return serialization_context["y"]
@@ -97,7 +89,7 @@ def predump(compiler, name, value, serializer):
             source=serializer["predump"], filename=f"{name}.predump"
         )
         for node in predump_module.body:
-            mod = Module([node], [])
+            mod = ast.Module([node], [])
             code_obj = compiler(mod, "", "exec")  # nosec
             exec(code_obj, {}, serialization_context)  # nosec
         return serialization_context["y"]
@@ -129,7 +121,7 @@ class RemoteDisplayHook:
             self.displayhook(obj)
 
 
-def prepare_ns(namespace: Dict) -> Dict:
+def prepare_ns(namespace: dict) -> dict:
     namespace.setdefault("__name__", "__main__")
     namespace.setdefault("__builtin__", builtins)
     namespace.setdefault("__builtins__", builtins)
@@ -141,14 +133,14 @@ def prepare_ns(namespace: Dict) -> Dict:
 
 
 async def run_ast_nodes(
-    ast_nodes: List[Tuple[ast.AST, str]],
+    ast_nodes: list[tuple[ast.AST, str]],
     autoawait: bool,
     compiler: codeop.Compile,
     user_ns: MutableMapping[str, Any],
 ):
     for node, mode in ast_nodes:
         if mode == "exec":
-            mod = Module([node], [])
+            mod = ast.Module([node], [])
         elif mode == "single":
             mod = ast.Interactive([node])
         with compiler.extra_flags(
@@ -157,9 +149,9 @@ async def run_ast_nodes(
             code_obj = compiler(mod, "", mode)
             asynchronous = compare(code_obj)
         if asynchronous:
-            await eval(code_obj, cast(Dict[str, Any], user_ns), user_ns)  # nosec
+            await eval(code_obj, cast(dict[str, Any], user_ns), user_ns)  # nosec
         else:
-            exec(code_obj, cast(Dict[str, Any], user_ns), user_ns)  # nosec
+            exec(code_obj, cast(dict[str, Any], user_ns), user_ns)  # nosec
 
 
 async def run_code(args):

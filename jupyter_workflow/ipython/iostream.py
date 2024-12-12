@@ -1,7 +1,8 @@
 from contextvars import ContextVar
 from functools import partial
 from io import StringIO
-from typing import MutableMapping, cast
+from typing import cast
+from collections.abc import MutableMapping
 
 from ipykernel.iostream import IOPubThread, OutStream
 

@@ -5,8 +5,9 @@ import json
 import os
 import tempfile
 from asyncio.subprocess import STDOUT
+from collections.abc import MutableMapping
 from tempfile import TemporaryDirectory, mkdtemp
-from typing import Any, List, MutableMapping, Optional, Tuple
+from typing import Any, Optional
 
 import cloudpickle as pickle
 from streamflow.core.context import StreamFlowContext
@@ -61,7 +62,7 @@ class JupyterCommand(Command):
     def __init__(
         self,
         step: Step,
-        ast_nodes: List[Tuple[ast.AST, str]],
+        ast_nodes: list[tuple[ast.AST, str]],
         compiler: codeop.Compile,
         interpreter: str,
         input_tokens: MutableMapping[str, JupyterCommandToken],
@@ -72,7 +73,7 @@ class JupyterCommand(Command):
         stdout: Optional[str] = None,
     ):
         super().__init__(step)
-        self.ast_nodes: List[Tuple[ast.AST, str]] = ast_nodes
+        self.ast_nodes: list[tuple[ast.AST, str]] = ast_nodes
         self.compiler: codeop.Compile = compiler
         self.interpreter: str = interpreter
         self.input_tokens: MutableMapping[str, JupyterCommandToken] = input_tokens
@@ -323,7 +324,7 @@ class JupyterCommand(Command):
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=job.output_directory,
-                env={**os.environ, **environment},
+                env=os.environ | environment,
                 stdin=stdin,
                 stdout=stdout,
                 stderr=stderr,

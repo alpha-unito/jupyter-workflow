@@ -1,6 +1,7 @@
 import ast
 import json
-from typing import Any, MutableMapping, MutableSequence
+from typing import Any
+from collections.abc import MutableMapping, MutableSequence
 
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import WorkflowExecutionException
@@ -69,9 +70,9 @@ class MakeListTransformer(OneToOneTransformer):
     async def _save_additional_params(
         self, context: StreamFlowContext
     ) -> MutableMapping[str, Any]:
-        return {
-            **await super()._save_additional_params(context),
-            **{"split_type": self.split_type.name, "split_size": self.split_size},
+        return await super()._save_additional_params(context) | {
+            "split_type": self.split_type.name,
+            "split_size": self.split_size,
         }
 
     def _transform(self, token: Token):
