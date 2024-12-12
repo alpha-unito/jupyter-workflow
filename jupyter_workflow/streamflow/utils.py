@@ -5,7 +5,7 @@ from typing import Any, MutableMapping, MutableSequence
 
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.deployment import Connector, Location, Target
+from streamflow.core.deployment import Connector, ExecutionLocation, Target
 from streamflow.core.workflow import Job, Token, Workflow
 from streamflow.data import remotepath
 from streamflow.deployment.utils import get_path_processor
@@ -47,7 +47,7 @@ async def get_file_token_from_ns(
     context: StreamFlowContext,
     connector: Connector,
     job: Job,
-    locations: MutableSequence[Location],
+    locations: MutableSequence[ExecutionLocation],
     output_directory: str,
     user_ns: MutableMapping[str, Any],
     value: Any,

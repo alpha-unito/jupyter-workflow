@@ -31,7 +31,6 @@ from streamflow.workflow.port import JobPort
 from streamflow.workflow.step import (
     BaseStep,
     DefaultCommandOutputProcessor,
-    ScatterStep,
     TransferStep,
 )
 from streamflow.workflow.token import FileToken, ListToken
@@ -369,19 +368,6 @@ class JupyterNotebookStep(BaseStep):
         )
 
 
-class JupyterScatterStep(ScatterStep):
-    def _scatter(self, token: Token):
-        if isinstance(token.value, Token):
-            self._scatter(token.value)
-        elif isinstance(token, ListToken):
-            output_port = self.get_output_port()
-            for i, t in enumerate(token.value):
-                t = t.retag(token.tag + "." + str(i))
-                output_port.put(t.update([t.value]))
-        else:
-            raise WorkflowDefinitionException("Scatter ports require iterable inputs")
-
-
 class JupyterTransferStep(TransferStep):
     async def _transfer(self, job: Job, path: str):
         dst_connector = self.workflow.context.scheduler.get_connector(job.name)
@@ -394,7 +380,7 @@ class JupyterTransferStep(TransferStep):
         logger.error(source_location.path)
         logger.error(dst_path)
         await self.workflow.context.data_manager.transfer_data(
-            src_locations=[source_location],
+            src_location=source_location.location,
             src_path=source_location.path,
             dst_locations=dst_locations,
             dst_path=dst_path,

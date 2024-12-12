@@ -1,29 +1,8 @@
-import os
-from pathlib import Path
 from typing import Any, MutableMapping
 
-import streamflow.config
-from jsonref import loads
 from jsonschema.validators import validator_for
-from streamflow.core import utils
-from streamflow.deployment.connector import connector_classes
 
-
-def load_jsonschema(metadata):
-    base_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "schemas", metadata["version"]
-    )
-    filename = os.path.join(base_path, "config_schema.json")
-    if not os.path.exists(filename):
-        raise Exception(f'Version in "{filename}" is unsupported')
-    with open(filename) as f:
-        return loads(
-            s=f.read(),
-            base_uri="file://{}/schemas/{}/".format(
-                Path(streamflow.config.__file__).parent, metadata["version"]
-            ),
-            jsonschema=True,
-        )
+from jupyter_workflow.config.schema import JfSchema
 
 
 def handle_errors(errors):
@@ -34,8 +13,8 @@ def handle_errors(errors):
 
 
 def validate(workflow_config: MutableMapping[str, Any]) -> None:
-    schema = load_jsonschema(workflow_config)
-    utils.inject_schema(schema, connector_classes, "deployment")
-    cls = validator_for(schema)
-    validator = cls(schema)
+    schema = JfSchema()
+    config = schema.get_config(workflow_config["version"]).contents
+    cls = validator_for(config)
+    validator = cls(config, registry=schema.registry)
     handle_errors(validator.iter_errors(workflow_config))
