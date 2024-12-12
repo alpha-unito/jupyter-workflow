@@ -40,7 +40,7 @@ class WorkflowIPythonKernel(IPythonKernel):
         try:
             content = parent["content"]
             code = content["code"]
-        except BaseException as e:
+        except Exception as e:
             self.log.error(e)
             self.log.error("%s", parent)
             return
@@ -118,7 +118,7 @@ class WorkflowIPythonKernel(IPythonKernel):
                         if k != "cell_id"
                     }
                 )
-            except BaseException as e:
+            except Exception as e:
                 self.log.error(str(e))
                 return metadata
             metadata["sf_token"] = self.shell.wf_cell_config.set(
@@ -139,7 +139,7 @@ class WorkflowIPythonKernel(IPythonKernel):
         try:
             content = parent["content"]
             notebook = content["notebook"]
-        except BaseException as e:
+        except Exception as e:
             self.log.error(e)
             self.log.error("%s", parent)
             return

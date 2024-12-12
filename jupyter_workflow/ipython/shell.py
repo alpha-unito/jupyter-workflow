@@ -125,9 +125,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             path=os.path.join(executor.__file__),
             relpath=os.path.basename(executor.__file__),
         )
-        self.wf_cell_config: ContextVar[MutableMapping[str, Any]] = ContextVar(
-            "wf_cell_config", default={}
-        )
+        self.wf_cell_config: ContextVar = ContextVar("wf_cell_config", default={})
         self.sys_excepthook = None
 
     def _error_before_exec(self, result, val):
@@ -193,7 +191,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 self.displayhook(self.user_ns["Out"][self.execution_count])
             # Update the other variables
             self.user_ns.update(outputs)
-        except BaseException:
+        except Exception:
             # Print output log
             output = next(
                 iter((await _get_outputs(workflow, executor.CELL_OUTPUT)).values())
@@ -278,7 +276,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                     ast_nodes=to_run,
                     cell_config=cell_config,
                 )
-            except BaseException:
+            except Exception:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]
                 self.showtraceback()
@@ -374,7 +372,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                     outputs.keys(), await asyncio.gather(*outputs.values())
                 ):
                     self.user_ns[out_name] = get_token_value(out_value)
-            except BaseException:
+            except Exception:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]
                 self.showtraceback()

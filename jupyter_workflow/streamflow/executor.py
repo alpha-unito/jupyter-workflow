@@ -191,7 +191,7 @@ async def run_code(args):
         else:
             output[CELL_LOCAL_NS] = ""
         output[CELL_STATUS] = "COMPLETED"
-    except BaseException:
+    except Exception:
         # Populate output object
         output[CELL_OUTPUT] = command_output.getvalue().strip()
         if output[CELL_OUTPUT]:
