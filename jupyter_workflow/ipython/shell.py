@@ -193,7 +193,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                 self.displayhook(self.user_ns["Out"][self.execution_count])
             # Update the other variables
             self.user_ns.update(outputs)
-        except BaseException:
+        except Exception:
             # Print output log
             output = next(
                 iter((await _get_outputs(workflow, executor.CELL_OUTPUT)).values())
