@@ -125,9 +125,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
             path=os.path.join(executor.__file__),
             relpath=os.path.basename(executor.__file__),
         )
-        self.wf_cell_config: ContextVar = ContextVar(
-            "wf_cell_config", default=lambda: {}
-        )
+        self.wf_cell_config: ContextVar = ContextVar("wf_cell_config", default={})
         self.sys_excepthook = None
 
     def _error_before_exec(self, result, val):

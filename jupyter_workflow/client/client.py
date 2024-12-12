@@ -31,7 +31,7 @@ async def on_cell_execute(
 class WorkflowKernelClient(AsyncKernelClient):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.metadata: ContextVar = ContextVar("metadata", default=lambda: {})
+        self.metadata: ContextVar = ContextVar("metadata", default={})
 
     def execute(
         self,
