@@ -113,7 +113,13 @@ class OutputJoinTransformer(OneToOneTransformer):
             for value in [t.value for t in token.value]:
                 try:
                     value = ast.literal_eval(value)
-                except Exception:
+                except (
+                    ValueError,
+                    TypeError,
+                    SyntaxError,
+                    MemoryError,
+                    RecursionError,
+                ):
                     pass
                 if isinstance(value, MutableSequence):
                     is_list = True
