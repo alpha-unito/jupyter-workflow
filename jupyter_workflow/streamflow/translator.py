@@ -176,7 +176,7 @@ def _get_gather_steps(scatter_step: ScatterStep) -> MutableSequence[Step]:
 
 
 def _get_scatter_inputs(
-    scatter_schema: MutableMapping[str, Any] | None
+    scatter_schema: MutableMapping[str, Any] | None,
 ) -> MutableMapping[str, Any]:
     scatter_inputs = {}
     if scatter_schema:
