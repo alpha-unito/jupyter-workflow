@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import asyncio
 import os
@@ -15,7 +17,7 @@ from IPython.core.interactiveshell import ExecutionResult
 from ipykernel.zmqshell import ZMQInteractiveShell
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.deployment import ExecutionLocation, LOCAL_LOCATION
+from streamflow.core.deployment import ExecutionLocation, LocalTarget
 from streamflow.core.exception import WorkflowDefinitionException
 from streamflow.core.workflow import Token, Workflow
 from streamflow.data import DefaultDataManager
@@ -121,7 +123,9 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         super().__init__(**kwargs)
         self.context: StreamFlowContext = build_context()
         self.context.data_manager.register_path(
-            location=ExecutionLocation(LOCAL_LOCATION, os.path.join(executor.__file__)),
+            location=ExecutionLocation(
+                deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__"
+            ),
             path=os.path.join(executor.__file__),
             relpath=os.path.basename(executor.__file__),
         )

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from contextvars import ContextVar
 from functools import partial
 from io import StringIO
