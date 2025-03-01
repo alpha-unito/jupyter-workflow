@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import MutableMapping
 from contextvars import ContextVar
 from functools import partial
-from collections.abc import MutableMapping
 
 from ipykernel.displayhook import ZMQShellDisplayHook
 from ipykernel.zmqshell import ZMQDisplayPublisher

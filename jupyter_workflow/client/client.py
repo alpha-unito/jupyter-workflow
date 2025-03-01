@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import MutableMapping, MutableSequence
 from contextvars import ContextVar
 from functools import partial
 from typing import Any, cast
-from collections.abc import MutableMapping, MutableSequence
 
 import traitlets
 from jupyter_client import AsyncKernelClient, AsyncKernelManager, KernelManager

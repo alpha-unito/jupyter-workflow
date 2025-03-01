@@ -14,9 +14,11 @@ flake8:
 	flake8 jupyter_workflow tests
 
 format:
+	isort jupyter_workflow tests
 	black jupyter_workflow tests
 
 format-check:
+	isort --check-only jupyter_workflow tests
 	black --diff --check jupyter_workflow tests
 
 pyupgrade:

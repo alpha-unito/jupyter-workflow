@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
 from collections.abc import MutableMapping
+from typing import Any
 
 from jsonschema.validators import validator_for
 from streamflow.core.exception import WorkflowDefinitionException

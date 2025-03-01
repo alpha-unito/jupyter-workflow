@@ -90,3 +90,6 @@ omit = [
     "jupyter_workflow/ipython/__main__.py",
     "tests/*"
 ]
+
+[tool.isort]
+profile = "black"
