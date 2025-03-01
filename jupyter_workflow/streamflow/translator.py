@@ -60,6 +60,7 @@ from jupyter_workflow.streamflow.transformer import (
     OutputJoinTransformer,
 )
 from jupyter_workflow.streamflow.utils import get_deploy_step
+from jupyter_workflow.streamflow.workflow import JupyterWorkflow
 
 
 def _add_gather_step(
@@ -962,8 +963,8 @@ class JupyterNotebookTranslator:
         self, notebook: JupyterNotebook, user_ns: MutableMapping[str, Any]
     ) -> Workflow:
         # Create workflow
-        workflow = Workflow(
-            context=self.context, type="jupyter", config={}, name=utils.random_name()
+        workflow = JupyterWorkflow(
+            context=self.context, config={}, name=utils.random_name()
         )
         # Add program context port with initial program context
         context_port = workflow.create_port(cls=ProgramContextPort)

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import json
-from typing import Any
 from collections.abc import MutableMapping, MutableSequence
+from typing import Any
 
 from cloudpickle import dumps, loads
 from streamflow.core.context import StreamFlowContext
@@ -8,7 +10,7 @@ from streamflow.core.data import DataType
 from streamflow.core.exception import UnrecoverableTokenException
 from streamflow.core.persistence import DatabaseLoadingContext
 from streamflow.core.workflow import Token
-from streamflow.data import remotepath
+from streamflow.data.remotepath import StreamFlowPath
 from streamflow.workflow.token import FileToken
 from streamflow.workflow.utils import get_token_value
 
@@ -22,12 +24,10 @@ async def _get_file_token_weight(
             path=path, data_type=DataType.PRIMARY
         )
         if data_locations:
-            location = next(iter(data_locations))
-            connector = context.deployment_manager.get_connector(location.deployment)
-            real_path = await remotepath.follow_symlink(
-                context, connector, location.location, path
+            sf_path = StreamFlowPath(
+                path, context=context, location=next(iter(data_locations)).location
             )
-            weight += await remotepath.size(connector, location.location, real_path)
+            weight += await (await sf_path.resolve()).size()
     return weight
 
 

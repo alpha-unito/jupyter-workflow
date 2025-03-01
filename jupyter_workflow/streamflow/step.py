@@ -10,6 +10,7 @@ from typing import Any, cast
 from collections.abc import MutableMapping
 
 import cloudpickle as pickle
+from streamflow.core.command import CommandOutput, CommandOutputProcessor
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import (
     WorkflowDefinitionException,
@@ -18,8 +19,6 @@ from streamflow.core.exception import (
 from streamflow.core.persistence import DatabaseLoadingContext
 from streamflow.core.utils import get_class_from_name, get_class_fullname
 from streamflow.core.workflow import (
-    CommandOutput,
-    CommandOutputProcessor,
     Job,
     Port,
     Status,
@@ -87,7 +86,7 @@ class JupyterInputInjectorStep(BaseStep, ABC):
     async def _save_additional_params(
         self, context: StreamFlowContext
     ) -> MutableMapping[str, Any]:
-        return await super()._save_additional_params(context) | {
+        return cast(dict, await super()._save_additional_params(context)) | {
             "context_port": self.get_input_port("__context__").persistent_id,
             "job_port": self.get_input_port("__job__").persistent_id,
             "value": self.value,
@@ -307,7 +306,7 @@ class JupyterNotebookStep(BaseStep):
     async def _save_additional_params(
         self, context: StreamFlowContext
     ) -> MutableMapping[str, Any]:
-        return await super()._save_additional_params(context) | {
+        return cast(dict, await super()._save_additional_params(context)) | {
             "ast_nodes": pickle.dumps(self.ast_nodes),
             "autoawait": self.autoawait,
             "compiler": get_class_fullname(type(self.compiler)),
@@ -372,8 +371,6 @@ class JupyterTransferStep(TransferStep):
             path=path, dst_deployment=dst_connector.deployment_name
         )
         dst_path = dst_path_processor.join(job.input_directory, source_location.relpath)
-        logger.error(source_location.path)
-        logger.error(dst_path)
         await self.workflow.context.data_manager.transfer_data(
             src_location=source_location.location,
             src_path=source_location.path,
