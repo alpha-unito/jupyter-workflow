@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import ast
 import json
-from typing import Any, cast
 from collections.abc import MutableMapping, MutableSequence
+from typing import Any, cast
 
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import WorkflowExecutionException

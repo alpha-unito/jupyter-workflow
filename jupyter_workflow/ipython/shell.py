@@ -12,9 +12,9 @@ from typing import Any, cast
 
 import streamflow.log_handler
 import traitlets
+from ipykernel.zmqshell import ZMQInteractiveShell
 from IPython.core.error import InputRejected
 from IPython.core.interactiveshell import ExecutionResult
-from ipykernel.zmqshell import ZMQInteractiveShell
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import ExecutionLocation, LocalTarget

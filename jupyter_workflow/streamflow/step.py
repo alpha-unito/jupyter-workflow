@@ -6,8 +6,8 @@ import codeop
 import json
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, cast
 from collections.abc import MutableMapping
+from typing import Any, cast
 
 import cloudpickle as pickle
 from streamflow.core.command import CommandOutput, CommandOutputProcessor

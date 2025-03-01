@@ -8,11 +8,11 @@ import os
 import posixpath
 import string
 from collections import deque
+from collections.abc import MutableMapping, MutableSequence
 from typing import (
     Any,
     cast,
 )
-from collections.abc import MutableMapping, MutableSequence
 
 from streamflow.core import utils
 from streamflow.core.config import BindingConfig

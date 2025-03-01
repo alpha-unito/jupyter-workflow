@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
 from collections.abc import MutableMapping
+from typing import Any
 
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.workflow import Workflow

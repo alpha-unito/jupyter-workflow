@@ -10,3 +10,6 @@ query-filters:
   # Reason: false positive on HasTraits class hierarchy
   - exclude:
       id: py/missing-call-to-init
+  # Reason: no support for the TYPE_CHECKING directive (issue 4258)
+  - exclude:
+      id:  py/unsafe-cyclic-import
