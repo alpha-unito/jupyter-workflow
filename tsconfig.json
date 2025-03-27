@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "esModuleInterop": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noUnusedLocals": true,
+    "outDir": "lib",
+    "rootDir": "jupyter_workflow/frontend/src",
+    "strict": true,
+    "target": "es2018",
+  },
+  "include": [
+    "jupyter_workflow/frontend/src/**/*"
+  ],
+}

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "jupyterlab", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
 
 [project]
 name = "jupyter-workflow"
@@ -13,6 +13,11 @@ requires-python = ">=3.9"
 license = {text = "LGPL-3.0-or-later"}
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Framework :: Jupyter",
+    "Framework :: Jupyter :: JupyterLab",
+    "Framework :: Jupyter :: JupyterLab :: 4",
+    "Framework :: Jupyter :: JupyterLab :: Extensions",
+    "Framework :: Jupyter :: JupyterLab :: Extensions :: Prebuilt",
     "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
@@ -38,35 +43,46 @@ Homepage = "https://jupyter-workflow.di.unito.it"
 Package = "https://pypi.org/project/jupyter-workflow"
 Repository = "https://github.com/alpha-unito/jupyter-workflow"
 
-[tool.setuptools]
-packages = [
-    "jupyter_workflow",
-    "jupyter_workflow.client",
-    "jupyter_workflow.config",
-    "jupyter_workflow.ipython",
-    "jupyter_workflow.streamflow",
+[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
+build_cmd = "build:prod"
+npm = ["jlpm"]
+
+[tool.hatch.build.hooks.jupyter-builder.editable-build-kwargs]
+build_cmd = "install:extension"
+npm = ["jlpm"]
+source_dir = "jupyter_workflow/frontend/src"
+build_dir = "labextension"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "jupyter_workflow/**/*.py",
 ]
-zip-safe = true
+artifacts  = ["labextension"]
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
+
+[tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
+bandit = ["bandit-requirements.txt"]
+docs = ["docs/requirements.txt"]
+lint = ["lint-requirements.txt"]
+test = ["test-requirements.txt"]
+
+[tool.hatch.version]
+source = "jupyter_workflow/version.py"
 
 [tool.setuptools.package-data]
 "jupyter_workflow.config" = ["schemas/v1.0/*.json"]
 "jupyter_workflow.ipython" = ["kernelspec/kernel.js"]
 
-[tool.setuptools.dynamic]
-dependencies = {file = "requirements.txt"}
-version = {attr = "jupyter_workflow.version.VERSION"}
-
-[tool.setuptools.dynamic.optional-dependencies]
-bandit = {file = "bandit-requirements.txt"}
-docs = {file = "docs/requirements.txt"}
-lint = {file = "lint-requirements.txt"}
-test = {file = "test-requirements.txt"}
-
 [tool.codespell]
 ignore-words-list = "inout"
 
 [tool.coverage.paths]
-executor = ["jupyter_workflow/streamflow/executor.py", "/tmp/streamflow/*/executor.py"]
+executor = [
+    "jupyter_workflow/streamflow/executor.py",
+    "/tmp/streamflow/*/executor.py"
+]
 
 [tool.coverage.run]
 branch = true

@@ -1,0 +1,57 @@
+{
+  "name": "jupyter-workflow",
+  "version": "0.1.0-dev4",
+  "description": "Jupyter Workflow UI",
+  "keywords": [
+    "jupyter",
+    "jupyter-workflow",
+    "jupyterlab",
+    "jupyterlab-extension"
+  ],
+  "homepage": "https://jupyter-workflow.di.unito.it",
+  "license": "LGPL-3.0-or-later",
+  "author": {
+    "name": "Iacopo Colonnelli",
+    "email": "iacopo.colonnelli@unito.it"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^4.3.6",
+    "@jupyterlab/apputils": "^4.4.6",
+    "@jupyterlab/cells": "^4.3.6",
+    "@jupyterlab/notebook": "^4.3.6",
+    "@jupyterlab/services": "^7.3.6",
+    "@jupyterlab/translation": "^4.3.6",
+    "@jupyterlab/ui-components": "^4.3.6",
+    "@lumino/algorithm": "^2.0.2",
+    "@lumino/coreutils": "^2.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.23.0",
+    "@jupyterlab/builder": "^4.3.6",
+    "eslint": "^9.23.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.5",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.5.3",
+    "rimraf": "^6.0.1",
+    "typescript-eslint": "^8.28.0"
+  },
+  "scripts": {
+    "build": "jlpm build:lib && jlpm build:labextension:dev",
+    "build:prod": "jlpm clean && jlpm build:lib && jlpm build:labextension",
+    "build:labextension": "jupyter labextension build .",
+    "build:labextension:dev": "jupyter labextension build --development True .",
+    "build:lib": "tsc",
+    "clean": "jlpm clean:lib",
+    "clean:lib": "rimraf lib tsconfig.tsbuildinfo",
+    "clean:lintcache": "rimraf .eslintcache .stylelintcache",
+    "clean:labextension": "rimraf jupyter_ai/labextension",
+    "clean:all": "jlpm clean:lib && jlpm clean:labextension && jlpm clean:lintcache",
+    "eslint": "eslint --ext .js,.jsx,.ts,.tsx --cache --fix .",
+    "eslint:check": "eslint --ext .js,.jsx,.ts,.tsx --cache .",
+    "install:extension": "jlpm build",
+    "watch": "run-p watch:src watch:labextension",
+    "watch:src": "tsc -w",
+    "watch:labextension": "jupyter labextension watch ."
+  }
+}

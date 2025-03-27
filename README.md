@@ -7,19 +7,19 @@ The Jupyter Workflow framework enables Jupyter Notebooks to describe complex wor
 
 ## Install Jupyter Workflow
 
-The Jupyter Workflow IPython kernel is available on [PyPI](https://pypi.org/project/jupyter-workflow/), so you can install it using pip.
+The Jupyter Workflow IPython kernel is available on [PyPI](https://pypi.org/project/jupyter-workflow/), so you can install it using pip
 
 ```bash
 pip install jupyter-workflow
 ```
 
-Then, you can install it on a Jupyter Notebook server by running the following command.
+Then, you can install it on a Jupyter Notebook server by running the following command
 
 ```bash
 python -m jupyter_workflow.ipython.install
 ```
 
-Please note that Jupyter Workflow requires `python >= 3.9`. Then you can associate your Jupyter Notebooks with the newly installed kernel. Some examples can be found under the `examples` folder in the [GitHub repository](https://github.com/alpha-unito/jupyter-workflow).
+Please note that Jupyter Workflow requires `python >= 3.9` and either `notebook >= 7.0` or `jupyterlab >= 4.0`. Then you can associate your Jupyter Notebooks with the newly installed kernel. Some examples can be found under the `examples` folder in the [GitHub repository](https://github.com/alpha-unito/jupyter-workflow).
 
 ## Jupyter Workflow Team
 
