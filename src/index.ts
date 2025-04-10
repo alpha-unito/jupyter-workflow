@@ -1,16 +1,8 @@
-import {
-  JupyterFrontEnd,
-  JupyterFrontEndPlugin
-} from '@jupyterlab/application';
+import { JupyterFrontEndPlugin } from "@jupyterlab/application";
+import { executor } from "./executor";
 
-const plugin: JupyterFrontEndPlugin<void> = {
-  id: 'jupyter-workflow:plugin',
-  description:
-    'Distributed workflows design and execution with Jupyter Notebooks',
-  autoStart: true,
-  activate: (app: JupyterFrontEnd) => {
-    console.log('Jupyter Workflow extension is active');
-  }
-};
+const plugins : JupyterFrontEndPlugin<any>[] = [
+  executor
+];
 
-export default plugin;
+export default plugins;

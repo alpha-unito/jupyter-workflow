@@ -6795,11 +6795,17 @@ __metadata:
   dependencies:
     "@eslint/js": ^9.24.0
     "@jupyterlab/application": ^4.4.0
+    "@jupyterlab/apputils": ^4.5.0
     "@jupyterlab/builder": ^4.4.0
+    "@jupyterlab/cells": ^4.4.0
     "@jupyterlab/coreutils": ^6.4.0
+    "@jupyterlab/notebook": ^4.4.0
     "@jupyterlab/services": ^7.4.0
     "@jupyterlab/settingregistry": ^4.4.0
     "@jupyterlab/testutils": ^4.4.0
+    "@jupyterlab/translation": ^4.4.0
+    "@lumino/algorithm": ^2.0.3
+    "@lumino/coreutils": ^2.2.1
     "@types/jest": ^29.5.14
     eslint: ^9.24.0
     eslint-config-prettier: ^10.1.1
