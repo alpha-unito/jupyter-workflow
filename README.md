@@ -23,8 +23,8 @@ Please note that Jupyter Workflow requires `python >= 3.9`. Then you can associa
 
 ## Jupyter Workflow Team
 
-Iacopo Colonnelli <iacopo.colonnelli@unito.it> (creator and maintainer) 
-Alberto Mulone <alberto.mulone@unito.it> (maintainer)
+Iacopo Colonnelli <iacopo.colonnelli@unito.it> (creator and maintainer)  
+Alberto Mulone <alberto.mulone@unito.it> (maintainer)  
 Sergio Rabellino <sergio.rabellino@unito.it> (maintainer)  
 Barbara Cantalupo <barbara.cantalupo@unito.it> (maintainer)  
-Marco Aldinucci <aldinuc@di.unito.it> (maintainer)  
+Marco Aldinucci <aldinuc@di.unito.it> (maintainer)
