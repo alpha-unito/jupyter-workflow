@@ -1,0 +1,15 @@
+**/lib
+**/package.json
+!/package.json
+.github/
+.idea/
+.pytest_cache/
+.yarn/
+build/
+coverage/
+dist/
+docs/
+examples/
+jupyter_workflow/
+tests/
+venv/
