@@ -10,7 +10,7 @@ from ipykernel.iostream import IOPubThread, OutStream
 
 
 def add_cell_id_hook(msg: MutableMapping, cell_id: ContextVar):
-    msg["content"]["metadata"]["cell_id"] = cell_id.get()
+    msg["metadata"]["cellId"] = cell_id.get()
     return msg
 
 
@@ -58,8 +58,8 @@ class WorkflowOutStream(OutStream):
         super()._flush()
 
     def delete_parent(self, parent):
-        if "workflow" in parent["content"]:
-            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
+        if cell_id := parent["metadata"].get("cellId"):
+            self.set_cell_id(cell_id)
         del self.parent_header
 
     @property
@@ -80,6 +80,6 @@ class WorkflowOutStream(OutStream):
             self._buffer_dict[cell_id] = StringIO()
 
     def set_parent(self, parent):
-        if "workflow" in parent["content"]:
-            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
+        if cell_id := parent["metadata"].get("cellId"):
+            self.set_cell_id(cell_id)
         super().set_parent(parent)

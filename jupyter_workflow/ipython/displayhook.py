@@ -9,7 +9,7 @@ from ipykernel.zmqshell import ZMQDisplayPublisher
 
 
 def add_cell_id_hook(msg: MutableMapping, cell_id: ContextVar):
-    msg["content"]["metadata"]["cell_id"] = cell_id.get()
+    msg["metadata"]["cellId"] = cell_id.get()
     return msg
 
 
@@ -21,8 +21,8 @@ class StreamFlowDisplayPublisher(ZMQDisplayPublisher):
         self.register_hook(partial(add_cell_id_hook, cell_id=self.cell_id))
 
     def delete_parent(self, parent):
-        if "workflow" in parent["content"]:
-            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
+        if cell_id := parent["metadata"].get("cellId"):
+            self.set_cell_id(cell_id)
         del self.parent_header
 
     @property
@@ -41,8 +41,8 @@ class StreamFlowDisplayPublisher(ZMQDisplayPublisher):
         self.cell_id.set(cell_id)
 
     def set_parent(self, parent):
-        if "workflow" in parent["content"]:
-            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
+        if cell_id := parent["metadata"].get("cellId"):
+            self.set_cell_id(cell_id)
         super().set_parent(parent)
 
 
@@ -53,8 +53,8 @@ class StreamFlowShellDisplayHook(ZMQShellDisplayHook):
         self.cell_id: ContextVar[str] = ContextVar("cell_id", default="")
 
     def delete_parent(self, parent):
-        if "workflow" in parent["content"]:
-            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
+        if cell_id := parent["metadata"].get("cellId"):
+            self.set_cell_id(cell_id)
         del self.parent_header
 
     @property
@@ -73,12 +73,12 @@ class StreamFlowShellDisplayHook(ZMQShellDisplayHook):
         self.cell_id.set(cell_id)
 
     def set_parent(self, parent):
-        if "workflow" in parent["content"]:
-            self.set_cell_id(parent["content"]["workflow"].get("cell_id", ""))
+        if cell_id := parent["metadata"].get("cellId"):
+            self.set_cell_id(cell_id)
         super().set_parent(parent)
 
     def write_format_data(self, format_dict, md_dict=None):
         if not md_dict:
             md_dict = {}
-        md_dict["cell_id"] = self.cell_id.get()
+        md_dict["cellId"] = self.cell_id.get()
         super().write_format_data(format_dict, md_dict)

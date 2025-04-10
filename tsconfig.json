@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "esModuleInterop": true,
+    "jsx": "react",
+    "lib": ["dom", "es2018", "es2020.Intl"],
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noUnusedLocals": true,
+    "preserveWatchOutput": true,
+    "outDir": "lib",
+    "rootDir": "src",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2018",
+    "types": ["jest"]
+  },
+  "include": ["src/**/*"]
+}

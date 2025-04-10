@@ -25,7 +25,14 @@ async def on_cell_execute(
     client: NotebookClient, cell: NotebookNode, cell_index: int
 ) -> None:
     if isinstance(client.kc, WorkflowKernelClient):
-        client.kc.metadata.set(cell.metadata.get("workflow", {}) | {"cell_id": cell.id})
+        client.kc.metadata.set(
+            {"cellId": cell.id}
+            | (
+                {"workflow": cell.metadata["workflow"]}
+                if "workflow" in cell.metadata
+                else {}
+            )
+        )
 
 
 class WorkflowKernelClient(AsyncKernelClient):
@@ -49,16 +56,18 @@ class WorkflowKernelClient(AsyncKernelClient):
         if not isinstance(code, str):
             raise ValueError("code %r must be a string" % code)
         validate_string_dict(user_expressions)
-        content = {
-            "code": code,
-            "silent": silent,
-            "store_history": store_history,
-            "user_expressions": user_expressions,
-            "allow_stdin": allow_stdin,
-            "stop_on_error": stop_on_error,
-            "workflow": self.metadata.get({}),
-        }
-        msg = self.session.msg("execute_request", content)
+        msg = self.session.msg(
+            msg_type="execute_request",
+            content={
+                "code": code,
+                "silent": silent,
+                "store_history": store_history,
+                "user_expressions": user_expressions,
+                "allow_stdin": allow_stdin,
+                "stop_on_error": stop_on_error,
+            },
+            metadata=self.metadata.get({}),
+        )
         self.shell_channel.send(msg)
         return msg["header"]["msg_id"]
 
@@ -113,8 +122,13 @@ class WorkflowClient(NotebookClient):
             msg = await ensure_async(self.kc.iopub_channel.get_msg(timeout=None))
             if msg["parent_header"].get("msg_id") == parent_msg_id:
                 try:
-                    if "cell_id" in msg["content"].get("metadata", {}):
-                        cell = cells[msg["content"]["metadata"]["cell_id"]]
+                    if msg["msg_type"] == "execute_result":
+                        cell_id = msg["content"]["metadata"].get("cellId")
+                        cell = cells[cell_id]
+                        self.process_message(msg, cell[1], cell[0])
+                    elif msg["msg_type"] == "stream":
+                        cell_id = msg["metadata"].get("cellId")
+                        cell = cells[cell_id]
                         self.process_message(msg, cell[1], cell[0])
                     else:
                         for cell in cells.values():
@@ -154,7 +168,7 @@ class WorkflowClient(NotebookClient):
                     cell = {
                         "code": cell["source"],
                         "metadata": cell["metadata"].get("workflow", {})
-                        | {"cell_id": cell.id},
+                        | {"cellId": cell.id},
                     }
                     cells[index] = cell
 

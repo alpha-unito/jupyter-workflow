@@ -50,7 +50,9 @@ streamflow.log_handler.defaultStreamHandler.stream = TextIOWrapper(
 
 def _classify_nodes(nodelist, interactivity):
     if interactivity == "last_expr_or_assign":
-        if isinstance(nodelist[-1], (ast.AugAssign, ast.AnnAssign, ast.Assign)):
+        if nodelist and isinstance(
+            nodelist[-1], (ast.AugAssign, ast.AnnAssign, ast.Assign)
+        ):
             asg = nodelist[-1]
             match asg:
                 case ast.Assign() if len(asg.targets) == 1:
@@ -65,7 +67,7 @@ def _classify_nodes(nodelist, interactivity):
                 nodelist.append(nnode)
         interactivity = "last_expr"
     if interactivity == "last_expr":
-        if isinstance(nodelist[-1], ast.Expr):
+        if nodelist and isinstance(nodelist[-1], ast.Expr):
             interactivity = "last"
         else:
             interactivity = "none"
@@ -325,7 +327,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                             code=to_run,
                             compiler=self.compile,
                             command_formatter=self.command_formatter_class(),
-                            metadata=metadata,
+                            metadata=metadata | {"cellId": metadata["cellId"]},
                         )
                     )
                 # Build workflow
@@ -385,6 +387,8 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                     outputs.keys(), await asyncio.gather(*outputs.values())
                 ):
                     self.user_ns[out_name] = get_token_value(out_value)
+                # Increment execution count
+                self.execution_count += 1
             except Exception:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]
