@@ -59,7 +59,8 @@
         "@jupyterlab/settingregistry": "^4.4.0",
         "@jupyterlab/translation": "^4.4.0",
         "@lumino/algorithm": "^2.0.3",
-        "@lumino/coreutils": "^2.2.1"
+        "@lumino/coreutils": "^2.2.1",
+        "@lumino/signaling": "^2.1.4"
     },
     "devDependencies": {
         "@eslint/js": "^9.24.0",

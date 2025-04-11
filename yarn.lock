@@ -6806,6 +6806,7 @@ __metadata:
     "@jupyterlab/translation": ^4.4.0
     "@lumino/algorithm": ^2.0.3
     "@lumino/coreutils": ^2.2.1
+    "@lumino/signaling": ^2.1.4
     "@types/jest": ^29.5.14
     eslint: ^9.24.0
     eslint-config-prettier: ^10.1.1
