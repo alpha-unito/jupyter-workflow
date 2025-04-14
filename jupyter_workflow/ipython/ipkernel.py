@@ -106,25 +106,19 @@ class WorkflowIPythonKernel(IPythonKernel):
         # Call parent functionse
         metadata = super().init_metadata(parent)
         # If StreamFlow has been configured for this cell, store its configuration
-        workflow_config = (
+        config = (
             parent["metadata"]
             if "workflow" in parent["metadata"]
             else parent["content"] if "workflow" in parent["content"] else None
         )
-        if workflow_config is not None:
+        if config is not None:
             try:
-                validate(
-                    {
-                        k: v
-                        for k, v in workflow_config["workflow"].items()
-                        if k != "cell_id"
-                    }
-                )
+                validate(config["workflow"])
             except WorkflowDefinitionException as e:
                 self.log.error(str(e))
                 return metadata
             metadata["sf_token"] = self.shell.wf_cell_config.set(
-                workflow_config["workflow"]
+                config["workflow"] | {"cell_id": config["cellId"]}
             )
         # Return metadata
         return metadata
@@ -162,7 +156,7 @@ class WorkflowIPythonKernel(IPythonKernel):
         reply_content = {}
         parent["content"]["workflow"] = {}
         for cell in notebook["cells"]:
-            parent["content"]["workflow"]["cell_id"] = cell["metadata"]["cell_id"]
+            parent["content"]["workflow"]["cell_id"] = cell["metadata"]["cellId"]
             self.set_parent(ident, parent)
         res = await shell.run_workflow(notebook)
         # Send stdout contents to cell streams

@@ -103,7 +103,7 @@ def _get_stdout(token_value: Any):
 
 
 def build_context() -> StreamFlowContext:
-    context: StreamFlowContext = StreamFlowContext({"path": os.getcwd()})
+    context: StreamFlowContext = StreamFlowContext({"path": os.path.join(os.getcwd(), "notebook.ipynb")})
     context.checkpoint_manager = DummyCheckpointManager(context)
     context.database = SqliteDatabase(context, ":memory:")
     context.data_manager = DefaultDataManager(context)
@@ -319,7 +319,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                             code=to_run,
                             compiler=self.compile,
                             command_formatter=self.command_formatter_class(),
-                            metadata=metadata,
+                            metadata=metadata | {"cell_id": metadata["cellId"]},
                         )
                     )
                 # Build workflow

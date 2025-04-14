@@ -3,6 +3,10 @@
     "version": "0.1.0-dev4",
     "description": "Distributed workflows design and execution with Jupyter Notebooks",
     "homepage": "https://jupyter-workflow.di.unito.it",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/alpha-unito/jupyter-workflow.git"
+    },
     "bugs": {
         "url": "https://github.com/alpha-unito/jupyter-workflow/issues"
     },
@@ -17,10 +21,13 @@
         "style/**/*.{css,js,eot,gif,html,jpg,json,png,svg,woff2,ttf}"
     ],
     "main": "lib/index.js",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/alpha-unito/jupyter-workflow.git"
-    },
+    "types": "lib/index.d.ts",
+    "style": "style/index.css",
+    "styleModule": "style/index.js",
+    "sideEffects": [
+        "style/*.css",
+        "style/index.js"
+    ],
     "scripts": {
         "build": "jlpm build:lib && jlpm build:labextension:dev",
         "build:prod": "jlpm clean && jlpm build:lib:prod && jlpm build:labextension",
@@ -56,10 +63,10 @@
         "@jupyterlab/coreutils": "^6.4.0",
         "@jupyterlab/notebook": "^4.4.0",
         "@jupyterlab/services": "^7.4.0",
-        "@jupyterlab/settingregistry": "^4.4.0",
         "@jupyterlab/translation": "^4.4.0",
         "@lumino/algorithm": "^2.0.3",
-        "@lumino/coreutils": "^2.2.1"
+        "@lumino/coreutils": "^2.2.1",
+        "@lumino/signaling": "^2.1.4"
     },
     "devDependencies": {
         "@eslint/js": "^9.24.0",

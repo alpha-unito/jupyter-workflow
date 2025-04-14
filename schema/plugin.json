@@ -1,0 +1,23 @@
+{
+  "title": "Jupyter Workflow",
+  "description": "Jupyter Workflow settings.",
+  "type": "object",
+  "jupyter.lab.menus": {
+    "main": [
+      {
+        "id": "jp-mainmenu-run",
+        "items": [
+          {
+            "command": "jupuyter-workflow:run-workflow",
+            "rank": 1000
+          },
+          {
+            "command": "jupuyter-workflow:restart-run-workflow",
+            "rank": 1001
+          }
+        ]
+      }
+    ]
+  },
+  "additionalProperties": false
+}
