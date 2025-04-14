@@ -7,9 +7,10 @@
       "es2018",
       "es2020.Intl"
     ],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "module": "esnext",
+    "moduleResolution": "node",
     "noUnusedLocals": true,
+    "preserveWatchOutput": true,
     "outDir": "lib",
     "rootDir": "src",
     "strict": true,
