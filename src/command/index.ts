@@ -4,10 +4,11 @@ import { ICommandPalette, ISessionContextDialogs, SemanticCommand, SessionContex
 import { INotebookCellExecutor, INotebookTracker, NotebookPanel } from "@jupyterlab/notebook";
 import { ReadonlyPartialJSONObject } from "@lumino/coreutils";
 import { setCellExecutor, WorkflowActions } from "./workflow";
+import { restartRunWorkflowIcon } from "../icon";
 
 namespace CommandIDs {
-  export const RESTART_RUN_WORKFLOW = "jupuyter-workflow:restart-run-workflow";
-  export const RUN_WORKFLOW = "jupuyter-workflow:run-workflow";
+  export const RESTART_RUN_WORKFLOW = "jupyter-workflow:restart-run-workflow";
+  export const RUN_WORKFLOW = "jupyter-workflow:run-workflow";
 }
 
 function getCurrent(
@@ -47,6 +48,7 @@ export const commands: JupyterFrontEndPlugin<void> = {
     app.commands.addCommand(CommandIDs.RESTART_RUN_WORKFLOW, {
       label: trans.__("Restart Kernel and Run Workflow"),
       caption: trans.__("Restart the Kernel and run the whole notebook as a distributed workflow"),
+      icon: args => (args.toolbar ? restartRunWorkflowIcon : undefined),
       execute: async args => {
         const current = getCurrent(tracker, app.shell, { activate: false, ...args });
         if (!current) {
