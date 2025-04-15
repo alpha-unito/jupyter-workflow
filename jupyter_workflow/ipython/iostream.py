@@ -10,7 +10,7 @@ from ipykernel.iostream import IOPubThread, OutStream
 
 
 def add_cell_id_hook(msg: MutableMapping, cell_id: ContextVar):
-    msg["content"]["metadata"]["cell_id"] = cell_id.get()
+    msg["metadata"]["cellId"] = cell_id.get()
     return msg
 
 
