@@ -8,14 +8,23 @@
         "id": "jp-mainmenu-run",
         "items": [
           {
-            "command": "jupuyter-workflow:run-workflow",
+            "command": "jupyter-workflow:run-workflow",
             "rank": 1000
           },
           {
-            "command": "jupuyter-workflow:restart-run-workflow",
+            "command": "jupyter-workflow:restart-run-workflow",
             "rank": 1001
           }
         ]
+      }
+    ]
+  },
+  "jupyter.lab.toolbars": {
+    "Notebook": [
+      {
+        "name": "jupyter-workflow:restart-run-workflow",
+        "command": "jupyter-workflow:restart-run-workflow",
+        "rank": 34
       }
     ]
   },

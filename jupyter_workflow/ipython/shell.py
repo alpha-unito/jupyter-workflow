@@ -103,7 +103,9 @@ def _get_stdout(token_value: Any):
 
 
 def build_context() -> StreamFlowContext:
-    context: StreamFlowContext = StreamFlowContext({"path": os.path.join(os.getcwd(), "notebook.ipynb")})
+    context: StreamFlowContext = StreamFlowContext(
+        {"path": os.path.join(os.getcwd(), "notebook.ipynb")}
+    )
     context.checkpoint_manager = DummyCheckpointManager(context)
     context.database = SqliteDatabase(context, ":memory:")
     context.data_manager = DefaultDataManager(context)
@@ -379,6 +381,8 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
                     outputs.keys(), await asyncio.gather(*outputs.values())
                 ):
                     self.user_ns[out_name] = get_token_value(out_value)
+                # Increment execution count
+                self.execution_count += 1
             except Exception:
                 if result:
                     result.error_before_exec = sys.exc_info()[1]

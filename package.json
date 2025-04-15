@@ -64,6 +64,7 @@
         "@jupyterlab/notebook": "^4.4.0",
         "@jupyterlab/services": "^7.4.0",
         "@jupyterlab/translation": "^4.4.0",
+        "@jupyterlab/ui-components": "^4.4.0",
         "@lumino/algorithm": "^2.0.3",
         "@lumino/coreutils": "^2.2.1",
         "@lumino/signaling": "^2.1.4"

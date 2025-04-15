@@ -9,7 +9,7 @@ from ipykernel.zmqshell import ZMQDisplayPublisher
 
 
 def add_cell_id_hook(msg: MutableMapping, cell_id: ContextVar):
-    msg["content"]["metadata"]["cell_id"] = cell_id.get()
+    msg["metadata"]["cellId"] = cell_id.get()
     return msg
 
 
@@ -80,5 +80,5 @@ class StreamFlowShellDisplayHook(ZMQShellDisplayHook):
     def write_format_data(self, format_dict, md_dict=None):
         if not md_dict:
             md_dict = {}
-        md_dict["cell_id"] = self.cell_id.get()
+        md_dict["cellId"] = self.cell_id.get()
         super().write_format_data(format_dict, md_dict)

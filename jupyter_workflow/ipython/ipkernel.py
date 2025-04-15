@@ -161,24 +161,16 @@ class WorkflowIPythonKernel(IPythonKernel):
         res = await shell.run_workflow(notebook)
         # Send stdout contents to cell streams
         for cell_name, content in res.stdout.items():
-            content = {
-                "name": "stdout",
-                "metadata": {"cell_id": cell_name},
-                "text": content,
-            }
-            msg = self.session.msg("stream", content, parent=extract_header(parent))
-            self.session.send(self.iopub_thread, msg, ident=ident)
-        # Send ipython out contents to cell streams
-        for cell_name, content in res.out.items():
-            content = {
-                "execution_count": 1,
-                "data": {"text/plain": repr(content)},
-                "metadata": {"cell_id": cell_name},
-            }
             msg = self.session.msg(
-                "execute_result", content, parent=extract_header(parent)
+                "stream",
+                content={
+                    "name": "stdout",
+                    "text": content,
+                },
+                parent=extract_header(parent),
+                metadata={"cellId": cell_name},
             )
-            self.session.send(self.iopub_thread, msg, ident=b"execute_result")
+            self.session.send(self.iopub_thread, msg, ident=ident)
         # Send reply message
         if res.error_before_exec is not None:
             err = res.error_before_exec
