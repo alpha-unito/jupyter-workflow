@@ -4,16 +4,25 @@ import {
   Notebook,
   NotebookActions,
   runCell as defaultRunCell
-} from "@jupyterlab/notebook";
-import { Dialog, ISessionContext, ISessionContextDialogs, Notification, showDialog } from "@jupyterlab/apputils";
-import { ITranslator, nullTranslator } from "@jupyterlab/translation";
-import { Cell, CodeCell, ICodeCellModel } from "@jupyterlab/cells";
-import { Signal } from "@lumino/signaling";
-import { JSONObject, PromiseDelegate } from "@lumino/coreutils";
-import { KernelMessage } from "@jupyterlab/services";
-import { KernelShellFutureHandler } from "@jupyterlab/services/lib/kernel/future";
-import { IExecuteReplyMsg, IExecuteRequestMsg } from "@jupyterlab/services/lib/kernel/messages";
-import { IShellFuture } from "@jupyterlab/services/lib/kernel/kernel";
+} from '@jupyterlab/notebook';
+import {
+  Dialog,
+  ISessionContext,
+  ISessionContextDialogs,
+  Notification,
+  showDialog
+} from '@jupyterlab/apputils';
+import { ITranslator, nullTranslator } from '@jupyterlab/translation';
+import { Cell, CodeCell, ICodeCellModel } from '@jupyterlab/cells';
+import { Signal } from '@lumino/signaling';
+import { JSONObject, PromiseDelegate } from '@lumino/coreutils';
+import { KernelMessage } from '@jupyterlab/services';
+import { KernelShellFutureHandler } from '@jupyterlab/services/lib/kernel/future';
+import {
+  IExecuteReplyMsg,
+  IExecuteRequestMsg
+} from '@jupyterlab/services/lib/kernel/messages';
+import { IShellFuture } from '@jupyterlab/services/lib/kernel/kernel';
 
 export namespace WorkflowActions {
   export function runWorkflow(
@@ -43,7 +52,7 @@ export namespace WorkflowActions {
 
 export function setCellExecutor(executor: INotebookCellExecutor): void {
   if (Private.executor) {
-    throw new Error("Cell executor can only be set once.");
+    throw new Error('Cell executor can only be set once.');
   }
   Private.executor = executor;
 }
@@ -91,14 +100,14 @@ namespace Private {
               cell.outputHidden = false;
             },
             false,
-            "silent-change"
+            'silent-change'
           );
-          model.executionState = "running";
+          model.executionState = 'running';
           model.trusted = true;
           return {
             code: model.sharedModel.getSource(),
             metadata: {
-              ...model.getMetadata("workflow") ?? {},
+              ...(model.getMetadata('workflow') ?? {}),
               ...{ cellId: model.sharedModel.getId() }
             }
           };
@@ -108,13 +117,13 @@ namespace Private {
     };
     const kernel = sessionContext.session?.kernel;
     if (!kernel) {
-      throw new Error("Session has no kernel.");
+      throw new Error('Session has no kernel.');
     }
     const request = KernelMessage.createMessage({
       // @ts-expect-error Introducing the new `workflow_request` type
-      msgType: "workflow_request",
+      msgType: 'workflow_request',
       // @ts-expect-error Introducing the new `workflow_request` type
-      channel: "shell",
+      channel: 'shell',
       username: kernel.username,
       session: kernel.clientId,
       subshellId: kernel.subshellId,
@@ -125,46 +134,52 @@ namespace Private {
     const future = kernel.sendShellMessage(request, true, false);
     const cellsDict = cells.reduce(
       (dict, cell) => {
-        cell.outputArea.future = (new KernelShellFutureHandler(
-          () => {
-          },
+        cell.outputArea.future = new KernelShellFutureHandler(
+          () => {},
           KernelMessage.createMessage<IExecuteRequestMsg>({
-            msgType: "execute_request",
-            channel: "shell",
+            msgType: 'execute_request',
+            channel: 'shell',
             username: kernel.username,
             session: kernel.clientId,
             subshellId: kernel.subshellId,
-            content: { code: "" },
+            content: { code: '' },
             metadata
           }),
           true,
           false,
           kernel
-        ) as IShellFuture<IExecuteRequestMsg, IExecuteReplyMsg>);
+        ) as IShellFuture<IExecuteRequestMsg, IExecuteReplyMsg>;
         dict[cell.model.sharedModel.getId()] = cell;
         return dict;
       },
-      ({} as { [id: string]: CodeCell })
+      {} as { [id: string]: CodeCell }
     );
     const msgDispatcher = (msg: KernelMessage.IIOPubMessage) => {
       switch (msg.header.msg_type) {
-        case "execute_result": {
-          const cell = cellsDict[(msg as KernelMessage.IExecuteResultMsg).content.metadata.cellId as string];
-          cell.outputArea.future.onIOPub(msg);
-        }
+        case 'execute_result':
+          {
+            const cell =
+              cellsDict[
+                (msg as KernelMessage.IExecuteResultMsg).content.metadata
+                  .cellId as string
+              ];
+            cell.outputArea.future.onIOPub(msg);
+          }
           break;
-        case "status":
+        case 'stream':
+          {
+            const cell =
+              cellsDict[
+                (msg as KernelMessage.IStreamMsg).metadata.cellId as string
+              ];
+            cell.outputArea.future.onIOPub(msg);
+          }
+          break;
+        default:
           cells.forEach(cell => {
             cell.outputArea.future.onIOPub(msg);
           });
           break;
-        case "stream": {
-          const cell = cellsDict[(msg as KernelMessage.IStreamMsg).metadata.cellId as string];
-          cell.outputArea.future.onIOPub(msg);
-        }
-          break;
-        default:
-          console.error(`Unhandled workflow reply message ${msg.header.msg_type}`);
       }
       return true;
     };
@@ -183,17 +198,17 @@ namespace Private {
   export async function handleRunState(
     notebook: Notebook,
     state: IState,
-    alignPreference?: "start" | "end" | "center" | "top-center"
+    alignPreference?: 'start' | 'end' | 'center' | 'top-center'
   ): Promise<void> {
     const { activeCell, activeCellIndex } = notebook;
     if (activeCell) {
       await notebook
-        .scrollToItem(activeCellIndex, "smart", 0, alignPreference)
+        .scrollToItem(activeCellIndex, 'smart', 0, alignPreference)
         .catch(reason => {
           console.error(reason);
         });
     }
-    if (state.wasFocused || notebook.mode === "edit") {
+    if (state.wasFocused || notebook.mode === 'edit') {
       notebook.activate();
     }
   }
@@ -206,59 +221,62 @@ namespace Private {
     translator?: ITranslator
   ): Promise<boolean> {
     translator = translator ?? nullTranslator;
-    const trans = translator.load("jupyterlab");
+    const trans = translator.load('jupyterlab');
     const lastCell = cells[cells.length - 1];
-    notebook.mode = "command";
+    notebook.mode = 'command';
     let initializingDialogShown = false;
-    const workflowCells: { cell: CodeCell, delegate: PromiseDelegate<boolean> }[] = [];
-    const promises: (Promise<boolean> | PromiseDelegate<boolean>)[] = cells.map(cell => {
-      if (
-        cell.model.type === "code" &&
-        notebook.notebookConfig.enableKernelInitNotification &&
-        sessionContext &&
-        sessionContext.kernelDisplayStatus === "initializing" &&
-        !initializingDialogShown
-      ) {
-        initializingDialogShown = true;
-        Notification.emit(
-          trans.__(
-            `Kernel '${sessionContext.kernelDisplayName}' for '${sessionContext.path}' is still initializing. You can run code cells when the kernel has initialized.`
-          ),
-          "warning",
-          {
-            autoClose: false
-          }
-        );
-        return Promise.resolve(false);
-      } else if (
-        cell.model.type === "code" &&
-        notebook.notebookConfig.enableKernelInitNotification &&
-        initializingDialogShown
-      ) {
-        return Promise.resolve(false);
-      } else if (
-        cell.model.type === "code"
-      ) {
-        const delegate = new PromiseDelegate<boolean>();
-        workflowCells.push({ cell: cell as CodeCell, delegate: delegate });
-        return delegate;
-      } else {
-        return runCell(
-          notebook,
-          cell,
-          sessionContext,
-          sessionDialogs,
-          translator
-        );
+    const workflowCells: {
+      cell: CodeCell;
+      delegate: PromiseDelegate<boolean>;
+    }[] = [];
+    const promises: (Promise<boolean> | PromiseDelegate<boolean>)[] = cells.map(
+      cell => {
+        if (
+          cell.model.type === 'code' &&
+          notebook.notebookConfig.enableKernelInitNotification &&
+          sessionContext &&
+          sessionContext.kernelDisplayStatus === 'initializing' &&
+          !initializingDialogShown
+        ) {
+          initializingDialogShown = true;
+          Notification.emit(
+            trans.__(
+              `Kernel '${sessionContext.kernelDisplayName}' for '${sessionContext.path}' is still initializing. You can run code cells when the kernel has initialized.`
+            ),
+            'warning',
+            {
+              autoClose: false
+            }
+          );
+          return Promise.resolve(false);
+        } else if (
+          cell.model.type === 'code' &&
+          notebook.notebookConfig.enableKernelInitNotification &&
+          initializingDialogShown
+        ) {
+          return Promise.resolve(false);
+        } else if (cell.model.type === 'code') {
+          const delegate = new PromiseDelegate<boolean>();
+          workflowCells.push({ cell: cell as CodeCell, delegate: delegate });
+          return delegate;
+        } else {
+          return runCell(
+            notebook,
+            cell,
+            sessionContext,
+            sessionDialogs,
+            translator
+          );
+        }
       }
-    });
+    );
     if (workflowCells.length > 0) {
       if (sessionContext) {
         if (sessionContext.isTerminating) {
           await showDialog({
-            title: trans.__("Kernel Terminating"),
+            title: trans.__('Kernel Terminating'),
             body: trans.__(
-              "The kernel for %1 appears to be terminating. You can not run any cell for now.",
+              'The kernel for %1 appears to be terminating. You can not run any cell for now.',
               sessionContext.session?.path
             ),
             buttons: [Dialog.okButton()]
@@ -268,9 +286,9 @@ namespace Private {
           });
         } else if (sessionContext.pendingInput) {
           await showDialog({
-            title: trans.__("Workflow not executed due to pending input"),
+            title: trans.__('Workflow not executed due to pending input'),
             body: trans.__(
-              "The workflow has not been executed to avoid kernel deadlock as there is another pending input! Type your input in the input box, press Enter and try again."
+              'The workflow has not been executed to avoid kernel deadlock as there is another pending input! Type your input in the input box, press Enter and try again.'
             ),
             buttons: [Dialog.okButton()]
           });
@@ -290,7 +308,9 @@ namespace Private {
           });
         } else {
           workflowCells.forEach(({ cell }) => {
-            (NotebookActions.executionScheduled as ExecutionScheduledSignal).emit({
+            (
+              NotebookActions.executionScheduled as ExecutionScheduledSignal
+            ).emit({
               notebook: notebook,
               cell: cell
             });
@@ -300,9 +320,9 @@ namespace Private {
               return cell.cell;
             }),
             sessionContext,
-            notebook.model?.getMetadata("workflow")
+            notebook.model?.getMetadata('workflow')
           );
-          if (reply.content.status === "ok") {
+          if (reply.content.status === 'ok') {
             workflowCells.forEach(({ cell, delegate }) => {
               cell.model.executionCount = reply.content.execution_count;
               (NotebookActions.executed as ExecutedSignal).emit({
@@ -333,36 +353,38 @@ namespace Private {
         });
       }
     }
-    return Promise.all(promises).then(results => {
-      if (notebook.isDisposed) {
-        return false;
-      }
-      (NotebookActions.selectionExecuted as SelectionExecutedSignal).emit({
-        notebook,
-        lastCell
-      });
-      notebook.update();
-      return results.every(result => result);
-    }).catch(reason => {
-      if (reason.message.startsWith("KernelReplyNotOK")) {
-        cells.map(cell => {
-          if (
-            cell.model.type === "code" &&
-            (cell as CodeCell).model.executionCount === null
-          ) {
-            (cell.model as ICodeCellModel).executionState = "idle";
-          }
+    return Promise.all(promises)
+      .then(results => {
+        if (notebook.isDisposed) {
+          return false;
+        }
+        (NotebookActions.selectionExecuted as SelectionExecutedSignal).emit({
+          notebook,
+          lastCell
         });
-      } else {
-        throw reason;
-      }
-      (NotebookActions.selectionExecuted as SelectionExecutedSignal).emit({
-        notebook,
-        lastCell
+        notebook.update();
+        return results.every(result => result);
+      })
+      .catch(reason => {
+        if (reason.message.startsWith('KernelReplyNotOK')) {
+          cells.map(cell => {
+            if (
+              cell.model.type === 'code' &&
+              (cell as CodeCell).model.executionCount === null
+            ) {
+              (cell.model as ICodeCellModel).executionState = 'idle';
+            }
+          });
+        } else {
+          throw reason;
+        }
+        (NotebookActions.selectionExecuted as SelectionExecutedSignal).emit({
+          notebook,
+          lastCell
+        });
+        notebook.update();
+        return false;
       });
-      notebook.update();
-      return false;
-    });
   }
 
   async function runCell(
@@ -374,7 +396,7 @@ namespace Private {
   ): Promise<boolean> {
     if (!executor) {
       console.warn(
-        "Requesting cell execution without any cell executor defined. Falling back to default execution."
+        'Requesting cell execution without any cell executor defined. Falling back to default execution.'
       );
     }
     const options = {
@@ -382,10 +404,16 @@ namespace Private {
       notebook: notebook.model!,
       notebookConfig: notebook.notebookConfig,
       onCellExecuted: args => {
-        (NotebookActions.executed as ExecutedSignal).emit({ notebook, ...args });
+        (NotebookActions.executed as ExecutedSignal).emit({
+          notebook,
+          ...args
+        });
       },
       onCellExecutionScheduled: args => {
-        (NotebookActions.executionScheduled as ExecutionScheduledSignal).emit({ notebook, ...args });
+        (NotebookActions.executionScheduled as ExecutionScheduledSignal).emit({
+          notebook,
+          ...args
+        });
       },
       sessionContext,
       sessionDialogs,
