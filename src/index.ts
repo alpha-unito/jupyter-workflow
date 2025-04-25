@@ -1,10 +1,7 @@
-import { JupyterFrontEndPlugin } from "@jupyterlab/application";
-import { executor } from "./executor";
-import { commands } from "./command";
+import { JupyterFrontEndPlugin } from '@jupyterlab/application';
+import { executor } from './executor';
+import { commands } from './command';
 
-const plugins : JupyterFrontEndPlugin<any>[] = [
-  commands,
-  executor
-];
+const plugins: JupyterFrontEndPlugin<any>[] = [commands, executor];
 
 export default plugins;

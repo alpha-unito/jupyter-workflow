@@ -1,36 +1,45 @@
-import { INotebookCellExecutor, INotebookModel, KernelError } from "@jupyterlab/notebook";
-import { nullTranslator } from "@jupyterlab/translation";
-import { Cell, CodeCell, ICodeCellModel, MarkdownCell } from "@jupyterlab/cells";
-import { Dialog, showDialog } from "@jupyterlab/apputils";
-import { KernelMessage } from "@jupyterlab/services";
-import { findIndex } from "@lumino/algorithm";
+import {
+  INotebookCellExecutor,
+  INotebookModel,
+  KernelError
+} from '@jupyterlab/notebook';
+import { nullTranslator } from '@jupyterlab/translation';
+import {
+  Cell,
+  CodeCell,
+  ICodeCellModel,
+  MarkdownCell
+} from '@jupyterlab/cells';
+import { Dialog, showDialog } from '@jupyterlab/apputils';
+import { KernelMessage } from '@jupyterlab/services';
+import { findIndex } from '@lumino/algorithm';
 
 export class JupyterWorkflowCellExecutor implements INotebookCellExecutor {
   async runCell({
-                  cell,
-                  notebook,
-                  notebookConfig,
-                  onCellExecuted,
-                  onCellExecutionScheduled,
-                  sessionContext,
-                  sessionDialogs,
-                  translator
-                }: INotebookCellExecutor.IRunCellOptions): Promise<boolean> {
+    cell,
+    notebook,
+    notebookConfig,
+    onCellExecuted,
+    onCellExecutionScheduled,
+    sessionContext,
+    sessionDialogs,
+    translator
+  }: INotebookCellExecutor.IRunCellOptions): Promise<boolean> {
     translator = translator ?? nullTranslator;
-    const trans = translator.load("jupyterlab");
+    const trans = translator.load('jupyterlab');
     switch (cell.model.type) {
-      case "markdown":
+      case 'markdown':
         (cell as MarkdownCell).rendered = true;
         cell.inputHidden = false;
         onCellExecuted({ cell, success: true });
         break;
-      case "code":
+      case 'code':
         if (sessionContext) {
           if (sessionContext.isTerminating) {
             await showDialog({
-              title: trans.__("Kernel Terminating"),
+              title: trans.__('Kernel Terminating'),
               body: trans.__(
-                "The kernel for %1 appears to be terminating. You can not run any cell for now.",
+                'The kernel for %1 appears to be terminating. You can not run any cell for now.',
                 sessionContext.session?.path
               ),
               buttons: [Dialog.okButton()]
@@ -39,9 +48,9 @@ export class JupyterWorkflowCellExecutor implements INotebookCellExecutor {
           }
           if (sessionContext.pendingInput) {
             await showDialog({
-              title: trans.__("Cell not executed due to pending input"),
+              title: trans.__('Cell not executed due to pending input'),
               body: trans.__(
-                "The cell has not been executed to avoid kernel deadlock as there is another pending input! Type your input in the input box, press Enter and try again."
+                'The cell has not been executed to avoid kernel deadlock as there is another pending input! Type your input in the input box, press Enter and try again.'
               ),
               buttons: [Dialog.okButton()]
             });
@@ -67,12 +76,14 @@ export class JupyterWorkflowCellExecutor implements INotebookCellExecutor {
               {
                 deletedCells,
                 recordTiming: notebookConfig.recordTiming,
-                ...(cell.model.getMetadata("workflow") ? {
-                  workflow: {
-                    ...notebook.getMetadata("workflow") ?? {},
-                    ...cell.model.getMetadata("workflow")
-                  }
-                } : {})
+                ...(cell.model.getMetadata('workflow')
+                  ? {
+                      workflow: {
+                        ...(notebook.getMetadata('workflow') ?? {}),
+                        ...cell.model.getMetadata('workflow')
+                      }
+                    }
+                  : {})
               }
             );
             deletedCells.splice(0, deletedCells.length);
@@ -83,7 +94,7 @@ export class JupyterWorkflowCellExecutor implements INotebookCellExecutor {
               if (!reply) {
                 return true;
               }
-              if (reply.content.status === "ok") {
+              if (reply.content.status === 'ok') {
                 const content = reply.content;
                 if (content.payload && content.payload.length) {
                   handlePayload(content, notebook, cell);
@@ -94,13 +105,16 @@ export class JupyterWorkflowCellExecutor implements INotebookCellExecutor {
               }
             })();
           } catch (reason) {
-            if (cell.isDisposed || (reason as KernelError).message.startsWith("Canceled")) {
+            if (
+              cell.isDisposed ||
+              (reason as KernelError).message.startsWith('Canceled')
+            ) {
               ran = false;
             } else {
               onCellExecuted({
                 cell,
                 success: false,
-                error: (reason as KernelError)
+                error: reason as KernelError
               });
               throw reason;
             }
@@ -127,7 +141,7 @@ function handlePayload(
   cell: Cell
 ) {
   const setNextInput = content.payload?.filter(i => {
-    return (i as any).source === "set_next_input";
+    return (i as any).source === 'set_next_input';
   })[0];
   if (!setNextInput) {
     return;
@@ -143,7 +157,7 @@ function handlePayload(
   const index = findIndex(cells, model => model === cell.model);
   if (index === -1) {
     notebookModel.insertCell(notebookModel.cells.length, {
-      cell_type: "code",
+      cell_type: 'code',
       source: text,
       metadata: {
         trusted: false
@@ -151,7 +165,7 @@ function handlePayload(
     });
   } else {
     notebookModel.insertCell(index + 1, {
-      cell_type: "code",
+      cell_type: 'code',
       source: text,
       metadata: {
         trusted: false
