@@ -445,7 +445,8 @@ class JupyterNotebookTranslator:
     def _inject_inputs(
         self, cell: JupyterCell, context_port: ProgramContextPort, workflow: Workflow
     ):
-        step = workflow.steps[posixpath.join(cell.metadata["cell_id"], "__schedule__")]
+        cell_id: str = cell.metadata["cellId"]
+        step = workflow.steps[posixpath.join(cell_id, "__schedule__")]
         input_ports = {
             k: v for k, v in step.get_input_ports().items() if k != "__connector__"
         }
@@ -478,12 +479,12 @@ class JupyterNotebookTranslator:
         for port_name, port in input_ports.items():
             # Check if there is a scatter step and, if yes, inject input into its port
             if split_step := workflow.steps.get(
-                posixpath.join(cell.metadata["cell_id"], port_name, "__split__")
+                posixpath.join(cell_id, port_name, "__split__")
             ):
                 port = split_step.get_input_port(port_name) or port
             # Otherwise, check for a combinator step and, if yes, inject input into its port
             elif combinator_step := workflow.steps.get(
-                posixpath.join(cell.metadata["cell_id"], "__combinator__")
+                posixpath.join(cell_id, "__combinator__")
             ):
                 port = combinator_step.get_input_port(port_name) or port
             # If the port has at least an input step, skip it
@@ -492,9 +493,7 @@ class JupyterNotebookTranslator:
             # Create a schedule step and connect it to the local DeployStep
             schedule_step = workflow.create_step(
                 cls=ScheduleStep,
-                name=posixpath.join(
-                    cell.metadata["cell_id"], port_name + "-injector", "__schedule__"
-                ),
+                name=posixpath.join(cell_id, port_name + "-injector", "__schedule__"),
                 connector_ports={target.deployment.name: deploy_step.get_output_port()},
                 input_directory=os.getcwd(),
                 output_directory=os.getcwd(),
@@ -506,9 +505,7 @@ class JupyterNotebookTranslator:
             if cell_inputs[port_name]["type"] == "name":
                 injector_step = workflow.create_step(
                     cls=JupyterNameInputInjectorStep,
-                    name=posixpath.join(
-                        cell.metadata["cell_id"], port_name + "-injector"
-                    ),
+                    name=posixpath.join(cell_id, port_name + "-injector"),
                     context_port=context_port,
                     job_port=schedule_step.get_output_port(),
                     value=cell_inputs[port_name].get("value"),
@@ -607,7 +604,7 @@ class JupyterNotebookTranslator:
         # Create a JupyterNotebookStep to execute the cell on the local context
         step = workflow.create_step(
             cls=JupyterNotebookStep,
-            name=cell.metadata["cell_id"],
+            name=cell.metadata["cellId"],
             ast_nodes=cell.code,
             autoawait=autoawait,
             compiler=cell.compiler,
@@ -627,7 +624,7 @@ class JupyterNotebookTranslator:
         metadata: MutableMapping[str, Any] | None,
         autoawait: bool = False,
     ) -> Step:
-        cell_id = metadata["cell_id"]
+        cell_id = metadata["cellId"]
         # Build execution target
         target = metadata.get("target")
         if target is not None:
