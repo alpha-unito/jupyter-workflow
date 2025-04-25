@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 import time
 from functools import partial
@@ -106,19 +107,14 @@ class WorkflowIPythonKernel(IPythonKernel):
         # Call parent functionse
         metadata = super().init_metadata(parent)
         # If StreamFlow has been configured for this cell, store its configuration
-        config = (
-            parent["metadata"]
-            if "workflow" in parent["metadata"]
-            else parent["content"] if "workflow" in parent["content"] else None
-        )
-        if config is not None:
+        if (config := parent["metadata"].get("workflow")) is not None:
             try:
-                validate(config["workflow"])
+                validate(config)
             except WorkflowDefinitionException as e:
                 self.log.error(str(e))
                 return metadata
             metadata["sf_token"] = self.shell.wf_cell_config.set(
-                config["workflow"] | {"cell_id": config["cellId"]}
+                config | {"cellId": parent["metadata"]["cellId"]}
             )
         # Return metadata
         return metadata
@@ -154,15 +150,14 @@ class WorkflowIPythonKernel(IPythonKernel):
     async def do_workflow(self, notebook, ident, parent):
         shell = self.shell
         reply_content = {}
-        parent["content"]["workflow"] = {}
         for cell in notebook["cells"]:
-            parent["content"]["workflow"]["cell_id"] = cell["metadata"]["cellId"]
+            parent["metadata"]["cellId"] = cell["metadata"]["cellId"]
             self.set_parent(ident, parent)
         res = await shell.run_workflow(notebook)
         # Send stdout contents to cell streams
         for cell_name, content in res.stdout.items():
             msg = self.session.msg(
-                "stream",
+                msg_type="stream",
                 content={
                     "name": "stdout",
                     "text": content,
@@ -171,6 +166,18 @@ class WorkflowIPythonKernel(IPythonKernel):
                 metadata={"cellId": cell_name},
             )
             self.session.send(self.iopub_thread, msg, ident=ident)
+        # Send ipython out contents to cell streams
+        for cell_name, content in res.out.items():
+            msg = self.session.msg(
+                msg_type="execute_result",
+                content={
+                    "data": {"text/plain": repr(content)},
+                    "execution_count": self.shell.execution_count - 1,
+                    "metadata": {"cellId": cell_name},
+                },
+                parent=extract_header(parent),
+            )
+            self.session.send(self.iopub_thread, msg, ident=b"execute_result")
         # Send reply message
         if res.error_before_exec is not None:
             err = res.error_before_exec

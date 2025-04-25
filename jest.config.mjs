@@ -1,6 +1,6 @@
 // @ts-check
 
-import jupyterlabConfig from '@jupyterlab/testutils/lib/jest-config'
+import jupyterlabConfig from '@jupyterlab/testutils/lib/jest-config.js'
 
 const esModules = [
   '@codemirror',
