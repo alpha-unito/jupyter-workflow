@@ -177,24 +177,30 @@ class JupyterCommand(Command):
                     compiler=self.compiler,
                     name=name,
                     value=value,
-                    serializer=input_serializers,
+                    serializer=input_serializers[name],
                 )
                 intermediate_type = input_serializers[name].get("type", "name")
                 if intermediate_type == "file":
                     namespace[name] = await self._transfer_file(job, value)
+                else:
+                    namespace[name] = value
         return await self._serialize_to_remote_file(job, namespace)
 
     async def _serialize_to_remote_file(self, job: Job, element: Any) -> str:
         fd, src_path = tempfile.mkstemp()
+        location = ExecutionLocation(
+            deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__"
+        )
+        sf_path = await StreamFlowPath(
+            src_path, context=self.step.workflow.context, location=location
+        ).resolve()
         with os.fdopen(fd, "wb") as f:
             pickle.dump(element, f)
             f.flush()
         self.step.workflow.context.data_manager.register_path(
-            location=ExecutionLocation(
-                deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__"
-            ),
-            path=src_path,
-            relpath=os.path.basename(src_path),
+            location=location,
+            path=str(sf_path),
+            relpath=sf_path.name,
         )
         return await self._transfer_file(job, src_path)
 

@@ -458,6 +458,11 @@ class JupyterNotebookTranslator:
             )
             for v in cell.metadata["step"].get("in", [])
         }
+        # Automatically set `valueFrom` to `name` when missing
+        for v in cell_inputs.values():
+            if "valueFrom" not in v:
+                v["valueFrom"] = v["name"]
+        # Expand automatic inputs
         for input_name in input_ports:
             if input_name not in cell_inputs:
                 cell_inputs[input_name] = {
@@ -714,7 +719,7 @@ class JupyterNotebookTranslator:
                 ast_nodes=cell.code,
             )
             for name in input_names:
-                if name not in step.input_ports:
+                if name not in input_ports:
                     input_ports[name] = self._get_source_port(name, workflow)
                     # Add scatter step if needed
                     if name in scatter_inputs:
