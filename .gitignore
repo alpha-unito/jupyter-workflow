@@ -151,5 +151,6 @@ jspm_packages/
 .yarn/
 .pnp.*
 
-# JupyterLab
+# Hatchling build hooks
 jupyter_workflow/labextension/
+jupyter_workflow/version.py

@@ -2,6 +2,7 @@
   "compilerOptions": {
     "composite": true,
     "esModuleInterop": true,
+    "jsx": "react",
     "lib": [
       "dom",
       "es2018",

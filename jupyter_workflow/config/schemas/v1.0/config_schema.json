@@ -96,13 +96,16 @@
       "type": "object",
       "properties": {
         "predump": {
-          "type": "string"
+          "type": "string",
+          "title": "Predump logic"
         },
         "postload": {
-          "type": "string"
+          "type": "string",
+          "title": "Postload logic"
         },
         "type": {
           "type": "string",
+          "title": "Output type",
           "enum": [
             "name",
             "file"
@@ -117,35 +120,49 @@
       "properties": {
         "background": {
           "type": "boolean",
+          "title": "Run in background",
           "default": false,
           "description": "A cell without output ports can run in background when the notebook is in interactive mode. Note that this has no effect in workflow mode"
         },
+        "autoin": {
+          "type": "boolean",
+          "title": "Auto detect inputs",
+          "default": true
+        },
         "in": {
           "type": "array",
+          "title": "Input dependencies",
           "items": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "Name"
               },
               {
                 "type": "object",
+                "title": "Definition",
                 "properties": {
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "title": "Name"
                   },
                   "serializer": {
                     "oneOf": [
                       {
-                        "type": "string"
+                        "type": "string",
+                        "title": "External"
                       },
                       {
                         "type": "object",
+                        "title": "Inline",
                         "$ref": "#/$defs/serializer"
                       }
-                    ]
+                    ],
+                    "title": "Serializer"
                   },
                   "type": {
                     "type": "string",
+                    "title": "Dependency type",
                     "enum": [
                       "control",
                       "env",
@@ -156,7 +173,8 @@
                   },
                   "value": {},
                   "valueFrom": {
-                    "type": "string"
+                    "type": "string",
+                    "title": "Value source"
                   }
                 },
                 "additionalProperties": false
@@ -165,36 +183,40 @@
           },
           "uniqueItems": true
         },
-        "autoin": {
-          "type": "boolean",
-          "default": true
-        },
         "out": {
           "type": "array",
+          "title": "Output dependencies",
           "items": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "Name"
               },
               {
                 "type": "object",
+                "title": "Definition",
                 "properties": {
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "title": "Name"
                   },
                   "serializer": {
                     "oneOf": [
                       {
-                        "type": "string"
+                        "type": "string",
+                        "title": "External"
                       },
                       {
                         "type": "object",
+                        "title": "Inline",
                         "$ref": "#/$defs/serializer"
                       }
-                    ]
+                    ],
+                    "title": "Object serializer"
                   },
                   "type": {
                     "type": "string",
+                    "title": "Dependency type",
                     "enum": [
                       "control",
                       "name",
@@ -204,7 +226,8 @@
                   },
                   "value": {},
                   "valueFrom": {
-                    "type": "string"
+                    "type": "string",
+                    "title": "Value source"
                   }
                 },
                 "additionalProperties": false
@@ -219,6 +242,7 @@
         },
         "workdir": {
           "type": "string",
+          "title": "Working directory",
           "description": "Path to the working directory",
           "default": "${TMPDIR}/streamflow"
         }
@@ -232,10 +256,12 @@
         "deployment": {
           "oneOf": [
             {
-              "type": "string"
+              "type": "string",
+              "title": "External"
             },
             {
               "type": "object",
+              "title": "Inline",
               "$ref": "#/$defs/deployment"
             }
           ]
@@ -250,6 +276,7 @@
         },
         "workdir": {
           "type": "string",
+          "title": "Working directory",
           "description": "Path to the working directory. It overrides the deployment-level setting.",
           "default": "${TMPDIR}/streamflow"
         }
@@ -267,6 +294,7 @@
     },
     "deployments": {
       "type": "object",
+      "title": "Deployments",
       "patternProperties": {
         "^[a-z][a-zA-Z0-9._-]*$": {
           "$ref": "#/$defs/deployment"
@@ -276,6 +304,7 @@
     },
     "serializers": {
       "type": "object",
+      "title": "Serializers",
       "patternProperties": {
         "^[a-z][a-zA-Z0-9._-]*$": {
           "$ref": "#/$defs/serializer"
