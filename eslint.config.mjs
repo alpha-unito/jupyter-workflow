@@ -15,6 +15,7 @@ export default tseslint.config(
       '.idea',
       '.pytest_cache',
       '.yarn',
+      '.venv',
       'build',
       'coverage',
       'dist',

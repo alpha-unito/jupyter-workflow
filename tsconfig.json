@@ -2,11 +2,8 @@
   "compilerOptions": {
     "composite": true,
     "esModuleInterop": true,
-    "lib": [
-      "dom",
-      "es2018",
-      "es2020.Intl"
-    ],
+    "jsx": "react",
+    "lib": ["dom", "es2018", "es2020.Intl"],
     "module": "esnext",
     "moduleResolution": "node",
     "noUnusedLocals": true,
