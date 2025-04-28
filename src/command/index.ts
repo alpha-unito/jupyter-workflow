@@ -64,7 +64,8 @@ export const commands: JupyterFrontEndPlugin<void> = {
         'Restart the Kernel and run the whole notebook as a distributed workflow'
       ),
       icon: args => (args.toolbar ? restartRunWorkflowIcon : undefined),
-      isEnabled: args => (args.toolbar? true : Private.isEnabled(app.shell, tracker)),
+      isEnabled: args =>
+        args.toolbar ? true : Private.isEnabled(app.shell, tracker),
       execute: async args => {
         const current = getCurrent(tracker, app.shell, {
           activate: false,
@@ -88,7 +89,7 @@ export const commands: JupyterFrontEndPlugin<void> = {
     app.commands.addCommand(CommandIDs.RUN_WORKFLOW, {
       label: trans.__('Run Workflow'),
       caption: trans.__('Run the whole notebook as a distributed workflow'),
-      isEnabled: () => (Private.isEnabled(app.shell, tracker)),
+      isEnabled: () => Private.isEnabled(app.shell, tracker),
       execute: args => {
         const current = getCurrent(tracker, app.shell, args);
         if (current) {
