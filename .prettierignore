@@ -5,6 +5,7 @@
 .idea/
 .pytest_cache/
 .yarn/
+.venv/
 build/
 coverage/
 dist/

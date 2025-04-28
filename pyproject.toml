@@ -2,7 +2,7 @@
 requires = [
     "hatchling",
     "jupyterlab>=4.0.0,<5",
-    "hatch-nodejs-version",
+    "hatch-nodejs-version>=0.4.0",
     "hatch-requirements-txt"
 ]
 build-backend = "hatchling.build"
@@ -45,7 +45,7 @@ Package = "https://pypi.org/project/jupyter-workflow"
 Repository = "https://github.com/alpha-unito/jupyter-workflow"
 
 [tool.hatch.version]
-path = "jupyter_workflow/version.py"
+source = "nodejs"
 
 [tool.hatch.metadata.hooks.nodejs]
 fields = ["description", "authors"]
@@ -76,6 +76,9 @@ ensured-targets = [
     "jupyter_workflow/labextension/package.json",
 ]
 skip-if-exists = ["jupyter_workflow/labextension/static/style.js"]
+
+[tool.hatch.build.hooks.version]
+path = "jupyter_workflow/version.py"
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 build_cmd = "build:prod"
