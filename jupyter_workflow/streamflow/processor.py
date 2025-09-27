@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from streamflow.core.command import CommandOutputProcessor
 from streamflow.core.deployment import Connector, Target
-from streamflow.core.workflow import Job, Token, Workflow
+from streamflow.core.workflow import CommandOutputProcessor, Job, Token, Workflow
 
 from jupyter_workflow.streamflow import utils
 from jupyter_workflow.streamflow.command import JupyterCommandOutput

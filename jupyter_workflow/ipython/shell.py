@@ -103,14 +103,18 @@ def _get_stdout(token_value: Any):
 
 
 def build_context() -> StreamFlowContext:
-    context: StreamFlowContext = StreamFlowContext({"path": os.getcwd()})
-    context.checkpoint_manager = DummyCheckpointManager(context)
-    context.database = SqliteDatabase(context, ":memory:")
-    context.data_manager = DefaultDataManager(context)
-    context.deployment_manager = DefaultDeploymentManager(context)
-    context.failure_manager = DummyFailureManager(context)
-    context.scheduler = DefaultScheduler(context)
-    return context
+    return StreamFlowContext(
+        config={
+            "path": os.getcwd(),
+            "database": {"config": {"connection": ":memory:"}},
+        },
+        checkpoint_manager_class=DummyCheckpointManager,
+        database_class=SqliteDatabase,
+        data_manager_class=DefaultDataManager,
+        deployment_manager_class=DefaultDeploymentManager,
+        failure_manager_class=DummyFailureManager,
+        scheduler_class=DefaultScheduler,
+    )
 
 
 class StreamFlowInteractiveShell(ZMQInteractiveShell):
@@ -272,7 +276,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         cell_config = self.wf_cell_config.get({})
         if "step" in cell_config:
             if not nodelist:
-                return
+                return False
             try:
                 to_run = _classify_nodes(nodelist, interactivity)
                 # Run AST nodes remotely

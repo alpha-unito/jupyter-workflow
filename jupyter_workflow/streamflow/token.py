@@ -7,7 +7,7 @@ from typing import Any
 from cloudpickle import dumps, loads
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.data import DataType
-from streamflow.core.exception import UnrecoverableTokenException
+from streamflow.core.exception import WorkflowExecutionException
 from streamflow.core.persistence import DatabaseLoadingContext
 from streamflow.core.workflow import Token
 from streamflow.data.remotepath import StreamFlowPath
@@ -80,7 +80,7 @@ class ProgramContextToken(Token):
                 if name in names:
                     value = names[name]
                 else:
-                    raise UnrecoverableTokenException(
+                    raise WorkflowExecutionException(
                         f"Variable {name} cannot be restored from the current program context."
                     )
         return cls(tag=row["tag"], value=value)
