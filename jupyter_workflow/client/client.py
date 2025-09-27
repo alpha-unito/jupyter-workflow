@@ -107,7 +107,7 @@ class WorkflowClient(NotebookClient):
                 return msg
 
     async def _async_poll_output_msgs(
-        self, parent_msg_id: str, cells: MutableMapping[str, (int, NotebookNode)]
+        self, parent_msg_id: str, cells: MutableMapping[str, tuple[int, NotebookNode]]
     ) -> None:
         while True:
             msg = await ensure_async(self.kc.iopub_channel.get_msg(timeout=None))
