@@ -11,18 +11,18 @@ import time
 from asyncio.subprocess import STDOUT
 from collections.abc import MutableMapping
 from tempfile import TemporaryDirectory, mkdtemp
-from typing import Any
+from typing import Any, cast
 
 import cloudpickle as pickle
-from streamflow.core.command import Command, CommandOutput
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.deployment import ExecutionLocation, LocalTarget
-from streamflow.core.utils import get_tag, random_name
-from streamflow.core.workflow import Job, Status, Step
+from streamflow.core.utils import random_name
+from streamflow.core.workflow import Command, CommandOutput, Job, Status, Step
 from streamflow.data.remotepath import StreamFlowPath
 from streamflow.deployment.utils import get_path_processor
 from streamflow.log_handler import logger
-from streamflow.workflow.utils import get_token_value
+from streamflow.workflow.step import ExecuteStep
+from streamflow.workflow.utils import get_job_token, get_token_value
 
 from jupyter_workflow.streamflow import executor
 
@@ -309,7 +309,9 @@ class JupyterCommand(Command):
         # Persist command
         execution_id = await self.step.workflow.context.database.add_execution(
             step_id=self.step.persistent_id,
-            tag=get_tag(job.inputs.values()),
+            job_token_id=get_job_token(
+                job.name, cast(ExecuteStep, self.step).get_job_port().token_list
+            ).persistent_id,
             cmd=cmd_string,
         )
         # If step is assigned to multiple locations, add the STREAMFLOW_HOSTS environment variable
