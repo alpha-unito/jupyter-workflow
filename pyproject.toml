@@ -27,7 +27,18 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: System :: Distributed Computing"
 ]
-dynamic = ["dependencies", "optional-dependencies", "version"]
+dependencies = [
+    "cloudpickle==3.1.2",
+    "ipython_genutils==0.2.0",
+    "ipykernel==6.29.5",
+    "jsonref==1.1.0",
+    "jupyter_client==8.6.3",
+    "nbclient==0.10.4",
+    "nbformat==5.10.4",
+    "streamflow==0.2.0.dev13",
+    "traitlets==5.14.3"
+]
+version = "0.1.0.dev4"
 
 [project.scripts]
 jupyter-workflow = "jupyter_workflow.client.cli:main"
@@ -36,6 +47,37 @@ jupyter-workflow = "jupyter_workflow.client.cli:main"
 Homepage = "https://jupyter-workflow.di.unito.it"
 Package = "https://pypi.org/project/jupyter-workflow"
 Repository = "https://github.com/alpha-unito/jupyter-workflow"
+
+[dependency-groups]
+dev = [
+    {include-group = "bandit"},
+    {include-group = "docs"},
+    {include-group = "lint"},
+    {include-group = "test"}
+]
+bandit = [
+    "bandit==1.8.6"
+]
+docs = [
+    "sphinx==8.1.3",
+    "sphinx-jsonschema==1.19.2",
+    "sphinx-rtd-theme==3.1.0"
+]
+lint = [
+    "black==26.1.0",
+    "codespell==2.4.1",
+    "flake8-bugbear==25.11.29",
+    "isort==6.1.0",
+    "pyupgrade==3.21.0"
+]
+test = [
+    "coverage[toml]==7.10.7",
+    "pytest==8.4.2",
+    "pytest-asyncio==1.3.0",
+    "pytest-xdist==3.8.0",
+    "testbook==0.4.2"
+]
+
 
 [tool.setuptools]
 packages = [
@@ -50,16 +92,6 @@ zip-safe = true
 [tool.setuptools.package-data]
 "jupyter_workflow.config" = ["schemas/v1.0/*.json"]
 "jupyter_workflow.ipython" = ["kernelspec/kernel.js"]
-
-[tool.setuptools.dynamic]
-dependencies = {file = "requirements.txt"}
-version = {attr = "jupyter_workflow.version.VERSION"}
-
-[tool.setuptools.dynamic.optional-dependencies]
-bandit = {file = "bandit-requirements.txt"}
-docs = {file = "docs/requirements.txt"}
-lint = {file = "lint-requirements.txt"}
-test = {file = "test-requirements.txt"}
 
 [tool.codespell]
 ignore-words-list = "inout"

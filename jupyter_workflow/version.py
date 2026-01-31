@@ -1,1 +1,3 @@
-VERSION = "0.1.0.dev4"
+from importlib.metadata import version
+
+VERSION = version("jupyter-workflow")
