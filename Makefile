@@ -22,7 +22,7 @@ format-check:
 	black --diff --check jupyter_workflow tests
 
 pyupgrade:
-	pyupgrade --py3-only --py39-plus $(shell git ls-files | grep .py)
+	pyupgrade --py3-only --py310-plus $(shell git ls-files | grep .py)
 
 test:
 	python -m pytest -rs ${PYTEST_EXTRA}
