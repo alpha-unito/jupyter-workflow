@@ -10,7 +10,6 @@ from collections.abc import MutableMapping
 from typing import Any, cast
 
 import cloudpickle as pickle
-from streamflow.core.command import CommandOutput, CommandOutputProcessor
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import (
     WorkflowDefinitionException,
@@ -19,6 +18,8 @@ from streamflow.core.exception import (
 from streamflow.core.persistence import DatabaseLoadingContext
 from streamflow.core.utils import get_class_from_name, get_class_fullname
 from streamflow.core.workflow import (
+    CommandOutput,
+    CommandOutputProcessor,
     Job,
     Port,
     Status,
@@ -367,17 +368,25 @@ class JupyterTransferStep(TransferStep):
         dst_connector = self.workflow.context.scheduler.get_connector(job.name)
         dst_path_processor = get_path_processor(dst_connector)
         dst_locations = self.workflow.context.scheduler.get_locations(job.name)
-        source_location = self.workflow.context.data_manager.get_source_location(
-            path=path, dst_deployment=dst_connector.deployment_name
-        )
-        dst_path = dst_path_processor.join(job.input_directory, source_location.relpath)
-        await self.workflow.context.data_manager.transfer_data(
-            src_location=source_location.location,
-            src_path=source_location.path,
-            dst_locations=dst_locations,
-            dst_path=dst_path,
-        )
-        return dst_path
+        if (
+            source_location := await self.workflow.context.data_manager.get_source_location(
+                path=path, dst_deployment=dst_connector.deployment_name
+            )
+        ) is not None:
+            dst_path = dst_path_processor.join(
+                job.input_directory, source_location.relpath
+            )
+            await self.workflow.context.data_manager.transfer_data(
+                src_location=source_location.location,
+                src_path=source_location.path,
+                dst_locations=dst_locations,
+                dst_path=dst_path,
+            )
+            return dst_path
+        else:
+            raise WorkflowExecutionException(
+                f"Impossible to retrieve the source location of {path} path"
+            )
 
     async def transfer(self, job: Job, token: Token) -> Token:
         if isinstance(token, ListToken):
