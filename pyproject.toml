@@ -2,8 +2,7 @@
 requires = [
     "hatchling",
     "jupyterlab>=4.0.0,<5",
-    "hatch-nodejs-version>=0.4.0",
-    "hatch-requirements-txt"
+    "hatch-nodejs-version>=0.4.0"
 ]
 build-backend = "hatchling.build"
 
@@ -34,7 +33,21 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: System :: Distributed Computing"
 ]
-dynamic = ["authors", "dependencies", "description", "optional-dependencies", "version"]
+dependencies = [
+    "cloudpickle==3.1.1",
+    "ipython_genutils==0.2.0",
+    "ipykernel==6.29.5",
+    "jsonref==1.1.0",
+    "jupyter_client==8.6.3",
+    "jupyter-server==2.15.0",
+    "nbclient==0.10.2",
+    "nbformat==5.10.4",
+    "streamflow==0.2.0.dev12",
+    "tornado==6.4.2",
+    "traitlets==5.14.3"
+]
+
+dynamic = ["authors", "description", "version"]
 
 [project.scripts]
 jupyter-workflow = "jupyter_workflow.client.cli:main"
@@ -44,20 +57,41 @@ Homepage = "https://jupyter-workflow.di.unito.it"
 Package = "https://pypi.org/project/jupyter-workflow"
 Repository = "https://github.com/alpha-unito/jupyter-workflow"
 
+[dependency-groups]
+dev = [
+    {include-group = "bandit"},
+    {include-group = "docs"},
+    {include-group = "lint"},
+    {include-group = "test"}
+]
+bandit = [
+    "bandit==1.8.6"
+]
+docs = [
+    "sphinx==8.2.3",
+    "sphinx-jsonschema==1.19.1",
+    "sphinx-rtd-theme==3.0.2"
+]
+lint = [
+    "black==25.9.0",
+    "codespell==2.4.1",
+    "flake8-bugbear==24.12.12",
+    "isort==6.0.1",
+    "pyupgrade==3.21.0"
+]
+test = [
+    "coverage[toml]==7.10.7",
+    "pytest==8.4.1",
+    "pytest-asyncio==1.2.0",
+    "pytest-xdist==3.8.0",
+    "testbook==0.4.2"
+]
+
 [tool.hatch.version]
 source = "nodejs"
 
 [tool.hatch.metadata.hooks.nodejs]
 fields = ["description", "authors"]
-
-[tool.hatch.metadata.hooks.requirements_txt]
-files = ["requirements.txt"]
-
-[tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
-bandit = ["bandit-requirements.txt"]
-docs = ["docs/requirements.txt"]
-lint = ["lint-requirements.txt"]
-test = ["test-requirements.txt"]
 
 [tool.hatch.build.targets.sdist]
 artifacts = ["jupyter_workflow/labextension"]
