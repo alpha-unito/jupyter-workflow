@@ -12,7 +12,7 @@ concurrency:
 jobs:
   code-ql-check:
     name: "Jupyter Workflow CodeQL check"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       security-events: write
     steps:
@@ -24,7 +24,7 @@ jobs:
       - uses: github/codeql-action/analyze@v4
   static-checks:
     name: "Jupyter Workflow static checks"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         step: [ "bandit", "lint" ]
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: 3.14
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -47,10 +47,10 @@ jobs:
         run: tox
   unit-tests:
     name: "Jupyter Workflow unit tests"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python: [ "3.10", "3.11", "3.12", "3.13" ]
+        python: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
     env:
       TOXENV: ${{ format('py{0}-unit', matrix.python) }}
     steps:
@@ -64,7 +64,7 @@ jobs:
             tox.ini
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: 24
       - uses: docker/setup-qemu-action@v3
       - name: "Install Python Dependencies and Jupyter Workflow"
         run: |
@@ -82,7 +82,7 @@ jobs:
   upload-to-codecov:
     name: "Codecov report upload"
     needs: [ "unit-tests" ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - name: "Download artifacts"
