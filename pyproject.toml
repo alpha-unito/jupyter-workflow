@@ -32,7 +32,7 @@ dependencies = [
     "ipython_genutils==0.2.0",
     "ipykernel==6.29.5",
     "jsonref==1.1.0",
-    "jupyter_client==8.6.3",
+    "jupyter_client==8.8.0",
     "nbclient==0.10.4",
     "nbformat==5.10.4",
     "streamflow==0.2.0.dev13",
