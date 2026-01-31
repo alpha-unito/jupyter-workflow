@@ -167,12 +167,11 @@ def _get_gather_steps(scatter_step: ScatterStep) -> MutableSequence[Step]:
     ports = [scatter_step.get_size_port()]
     while ports:
         for step in ports.pop().get_output_steps():
-            if isinstance(
-                step, (CartesianProductSizeTransformer, DotProductSizeTransformer)
-            ):
-                ports.append(step.get_output_port())
-            elif isinstance(step, GatherStep):
-                gather_steps.append(step)
+            match step:
+                case CartesianProductSizeTransformer() | DotProductSizeTransformer():
+                    ports.append(step.get_output_port())
+                case GatherStep():
+                    gather_steps.append(step)
     return gather_steps
 
 
@@ -264,12 +263,13 @@ class DependenciesRetriever(ast.NodeVisitor):
 
     def _visit_fields(self, fields):
         for value in fields.values():
-            if isinstance(value, list):
-                for item in value:
-                    if isinstance(item, ast.AST):
-                        self.visit(item)
-            elif isinstance(value, ast.AST):
-                self.visit(value)
+            match value:
+                case list():
+                    for item in value:
+                        if isinstance(item, ast.AST):
+                            self.visit(item)
+                case ast.AST():
+                    self.visit(value)
 
     def _visit_Comp(self, node):
         # Add local context
@@ -382,12 +382,13 @@ class DependenciesRetriever(ast.NodeVisitor):
         self._visit_Comp(node)
 
     def visit_Name(self, node):
-        if isinstance(node.ctx, ast.Load) and node.id not in self.names:
-            # Skip the 'get_ipython' dependency as it is not serialisable
-            if node.id != "get_ipython":
-                self.deps.add(node.id)
-        elif isinstance(node.ctx, ast.Store):
-            self.names.add_name(node.id)
+        match node.ctx:
+            case ast.Load() if node.id not in self.names:
+                # Skip the 'get_ipython' dependency as it is not serialisable
+                if node.id != "get_ipython":
+                    self.deps.add(node.id)
+            case ast.Store():
+                self.names.add_name(node.id)
         self.generic_visit(node)
 
     def visit_SetComp(self, node):
@@ -503,26 +504,27 @@ class JupyterNotebookTranslator:
             )
             # Create an InputInjector step to process the input if needed
             injector_step = None
-            if cell_inputs[port_name]["type"] == "name":
-                injector_step = workflow.create_step(
-                    cls=JupyterNameInputInjectorStep,
-                    name=posixpath.join(
-                        cell.metadata["cell_id"], port_name + "-injector"
-                    ),
-                    context_port=context_port,
-                    job_port=schedule_step.get_output_port(),
-                    value=cell_inputs[port_name].get("value"),
-                    value_from=cell_inputs[port_name].get("valueFrom"),
-                )
-            elif cell_inputs[port_name]["type"] == "file":
-                injector_step = workflow.create_step(
-                    cls=JupyterFileInputInjectorStep,
-                    name=posixpath.join(step.name, port_name + "-injector"),
-                    context_port=context_port,
-                    job_port=schedule_step.get_output_port(),
-                    value=cell_inputs[port_name].get("value"),
-                    value_from=cell_inputs[port_name].get("valueFrom"),
-                )
+            match cell_inputs[port_name]["type"]:
+                case "name":
+                    injector_step = workflow.create_step(
+                        cls=JupyterNameInputInjectorStep,
+                        name=posixpath.join(
+                            cell.metadata["cell_id"], port_name + "-injector"
+                        ),
+                        context_port=context_port,
+                        job_port=schedule_step.get_output_port(),
+                        value=cell_inputs[port_name].get("value"),
+                        value_from=cell_inputs[port_name].get("valueFrom"),
+                    )
+                case "file":
+                    injector_step = workflow.create_step(
+                        cls=JupyterFileInputInjectorStep,
+                        name=posixpath.join(step.name, port_name + "-injector"),
+                        context_port=context_port,
+                        job_port=schedule_step.get_output_port(),
+                        value=cell_inputs[port_name].get("value"),
+                        value_from=cell_inputs[port_name].get("valueFrom"),
+                    )
             # If there is an injector step, create an input port and inject values
             if injector_step:
                 input_port = workflow.create_port()
@@ -857,33 +859,36 @@ class JupyterNotebookTranslator:
                     # Process port type
                     element_type = element["type"]
                     # If type is equal to `file`, it refers to a file path in the remote resource
-                    if element_type == "file":
-                        # Add file output processor to the execute step
-                        step.output_processors[name] = (
-                            JupyterFileCommandOutputProcessor(
-                                name=name,
-                                workflow=workflow,
-                                value=element.get("value"),
-                                value_from=element.get("valueFrom"),
+                    match element_type:
+                        case "file":
+                            # Add file output processor to the execute step
+                            step.output_processors[name] = (
+                                JupyterFileCommandOutputProcessor(
+                                    name=name,
+                                    workflow=workflow,
+                                    value=element.get("value"),
+                                    value_from=element.get("valueFrom"),
+                                )
                             )
-                        )
-                    # If type is equal to `name` or `env`, it refers to a variable
-                    elif element_type in ["name", "env"]:
-                        # Add name output processor to the execute step
-                        step.output_processors[name] = (
-                            JupyterNameCommandOutputProcessor(
-                                name=name,
-                                workflow=workflow,
-                                value=element.get("value"),
-                                value_from=element.get("valueFrom", name),
+                        case "name" | "env":
+                            # Add name output processor to the execute step
+                            step.output_processors[name] = (
+                                JupyterNameCommandOutputProcessor(
+                                    name=name,
+                                    workflow=workflow,
+                                    value=element.get("value"),
+                                    value_from=element.get("valueFrom", name),
+                                )
                             )
-                        )
-                    # If type is equal to `control`, simply add an empty dependency
-                    elif element_type == "control":
-                        # Add default output processor to the execute step
-                        step.output_processors[name] = DefaultCommandOutputProcessor(
-                            name=name, workflow=workflow
-                        )
+                        case "control":
+                            # Add default output processor to the execute step
+                            step.output_processors[name] = (
+                                DefaultCommandOutputProcessor(
+                                    name=name, workflow=workflow
+                                )
+                            )
+                        case _:
+                            raise ValueError(f"Unsupported type `{element_type}`")
                     # Add command token
                     output_tokens[name] = JupyterCommandToken(
                         name=name, token_type=element_type, serializer=serializer

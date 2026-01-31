@@ -141,10 +141,11 @@ async def run_ast_nodes(
     user_ns: MutableMapping[str, Any],
 ):
     for node, mode in ast_nodes:
-        if mode == "exec":
-            mod = ast.Module([node], [])
-        elif mode == "single":
-            mod = ast.Interactive([node])
+        match mode:
+            case "exec":
+                mod = ast.Module([node], [])
+            case "single":
+                mod = ast.Interactive([node])
         with compiler.extra_flags(
             getattr(ast, "PyCF_ALLOW_TOP_LEVEL_AWAIT", 0x0) if autoawait else 0x0
         ):

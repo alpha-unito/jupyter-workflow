@@ -52,12 +52,13 @@ def _classify_nodes(nodelist, interactivity):
     if interactivity == "last_expr_or_assign":
         if isinstance(nodelist[-1], (ast.AugAssign, ast.AnnAssign, ast.Assign)):
             asg = nodelist[-1]
-            if isinstance(asg, ast.Assign) and len(asg.targets) == 1:
-                target = asg.targets[0]
-            elif isinstance(asg, (ast.AugAssign, ast.AnnAssign)):
-                target = asg.target
-            else:
-                target = None
+            match asg:
+                case ast.Assign() if len(asg.targets) == 1:
+                    target = asg.targets[0]
+                case ast.AugAssign() | ast.AnnAssign():
+                    target = asg.target
+                case _:
+                    target = None
             if isinstance(target, ast.Name):
                 nnode = ast.Expr(ast.Name(target.id, ast.Load()))
                 ast.fix_missing_locations(nnode)
@@ -68,14 +69,15 @@ def _classify_nodes(nodelist, interactivity):
             interactivity = "last"
         else:
             interactivity = "none"
-    if interactivity == "none":
-        to_run_exec, to_run_interactive = nodelist, []
-    elif interactivity == "last":
-        to_run_exec, to_run_interactive = nodelist[:-1], nodelist[-1:]
-    elif interactivity == "all":
-        to_run_exec, to_run_interactive = [], nodelist
-    else:
-        raise ValueError("Interactivity was %r" % interactivity)
+    match interactivity:
+        case "none":
+            to_run_exec, to_run_interactive = nodelist, []
+        case "last":
+            to_run_exec, to_run_interactive = nodelist[:-1], nodelist[-1:]
+        case "all":
+            to_run_exec, to_run_interactive = [], nodelist
+        case _:
+            raise ValueError("Interactivity was %r" % interactivity)
     to_run = []
     for node in to_run_exec:
         to_run.append((node, "exec"))

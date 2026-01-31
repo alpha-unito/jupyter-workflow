@@ -389,15 +389,19 @@ class JupyterTransferStep(TransferStep):
             )
 
     async def transfer(self, job: Job, token: Token) -> Token:
-        if isinstance(token, ListToken):
-            return token.update(
-                await asyncio.gather(
-                    *(asyncio.create_task(self.transfer(job, t)) for t in token.value)
+        match token:
+            case ListToken():
+                return token.update(
+                    await asyncio.gather(
+                        *(
+                            asyncio.create_task(self.transfer(job, t))
+                            for t in token.value
+                        )
+                    )
                 )
-            )
-        elif isinstance(token, FileToken):
-            token_value = get_token_value(token)
-            dst_path = await self._transfer(job, token_value)
-            return token.update(dst_path)
-        else:
-            return token
+            case FileToken():
+                token_value = get_token_value(token)
+                dst_path = await self._transfer(job, token_value)
+                return token.update(dst_path)
+            case _:
+                return token
