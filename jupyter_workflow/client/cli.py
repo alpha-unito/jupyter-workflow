@@ -32,33 +32,27 @@ class JupyterWorkflowApp(JupyterApp):
     timeout = traitlets.Integer(
         None,
         allow_none=True,
-        help=dedent(
-            """
+        help=dedent("""
             The time to wait (in seconds) for output from executions.
             If workflow execution takes longer, a TimeoutError is raised.
             ``-1`` will disable the timeout.
-            """
-        ),
+            """),
     ).tag(config=True)
     startup_timeout = traitlets.Integer(
         60,
-        help=dedent(
-            """
+        help=dedent("""
             The time to wait (in seconds) for the kernel to start.
             If kernel startup takes longer, a RuntimeError is
             raised.
-            """
-        ),
+            """),
     ).tag(config=True)
     interactive = traitlets.Bool(
         False,
-        help=dedent(
-            """
+        help=dedent("""
             Simulates an interactive notebook execution, executing
             cells sequentially from beginning to end instead of
             constructing a DAG. Mainly used for testing purposes.
-            """
-        ),
+            """),
     ).tag(config=True)
 
     @traitlets.default("log_level")
