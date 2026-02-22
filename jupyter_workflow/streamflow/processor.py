@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+
 from streamflow.core.deployment import Connector, Target
-from streamflow.core.workflow import CommandOutputProcessor, Job, Token, Workflow
+from streamflow.core.processor import CommandOutputProcessor
+from streamflow.core.workflow import Job, Token, Workflow
 
 from jupyter_workflow.streamflow import utils
 from jupyter_workflow.streamflow.command import JupyterCommandOutput
@@ -23,8 +26,9 @@ class JupyterFileCommandOutputProcessor(CommandOutputProcessor):
     async def process(
         self,
         job: Job,
-        command_output: JupyterCommandOutput,
+        command_output: asyncio.Future[JupyterCommandOutput],
         connector: Connector | None = None,
+        recoverable: bool = False,
     ) -> Token | None:
         return await utils.get_file_token_from_ns(
             context=self.workflow.context,
@@ -34,7 +38,7 @@ class JupyterFileCommandOutputProcessor(CommandOutputProcessor):
             output_directory=(
                 self.target.workdir if self.target else job.output_directory
             ),
-            user_ns=command_output.user_ns,
+            user_ns=(await command_output).user_ns,
             value=self.value,
             value_from=self.value_from,
         )
@@ -55,12 +59,13 @@ class JupyterNameCommandOutputProcessor(CommandOutputProcessor):
     async def process(
         self,
         job: Job,
-        command_output: JupyterCommandOutput,
+        command_output: asyncio.Future[JupyterCommandOutput],
         connector: Connector | None = None,
+        recoverable: bool = False,
     ) -> Token | None:
         return utils.get_token_from_ns(
             job=job,
-            user_ns=command_output.user_ns,
+            user_ns=(await command_output).user_ns,
             value=self.value,
             value_from=self.value_from,
         )
