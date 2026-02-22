@@ -131,6 +131,12 @@ class JupyterCommand(Command):
                             dst_path = os.path.join(
                                 mkdtemp(), path_processor.basename(namespace[name])
                             )
+                            
+                            for location in self.step.workflow.context.scheduler.get_locations(job.name):
+                                self.step.workflow.context.data_manager.register_path(
+                                    location=location,
+                                    path=namespace[name],
+                                )
                             await asyncio.gather(
                                 *(
                                     asyncio.create_task(
@@ -208,6 +214,15 @@ class JupyterCommand(Command):
         dst_connector = self.step.workflow.context.scheduler.get_connector(job.name)
         path_processor = get_path_processor(dst_connector)
         dst_path = path_processor.join(job.input_directory, os.path.basename(path))
+        
+        src_loc = ExecutionLocation(deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__")
+        self.step.workflow.context.data_manager.register_path(
+            location=src_loc,
+            path=path,
+            relpath=os.path.basename(path),
+        )
+
+        
         await self.step.workflow.context.data_manager.transfer_data(
             src_location=ExecutionLocation(
                 deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__"
