@@ -28,5 +28,4 @@ test:
 	python -m pytest -rs ${PYTEST_EXTRA}
 
 testcov:
-	coverage run -m pytest -rs ${PYTEST_EXTRA}
-	coverage combine --quiet --append
+	python -m pytest -rs --cov --junitxml=junit.xml -o junit_family=legacy --cov-report= ${PYTEST_EXTRA}

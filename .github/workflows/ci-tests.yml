@@ -37,7 +37,7 @@ jobs:
           version: "0.9.16"
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: 3.14
       - name: "Install Tox"
         run: uv tool install tox --with tox-uv
       - name: "Run Jupyter Workflow static analysis via Tox"
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python: [ "3.10", "3.11", "3.12", "3.13" ]
+        python: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
     env:
       TOXENV: ${{ format('py{0}-unit', matrix.python) }}
     steps:
@@ -62,7 +62,7 @@ jobs:
         run: uv tool install tox --with tox-uv
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: 24
       - uses: docker/setup-qemu-action@v3
       - name: "Run Jupyter Workflow tests via Tox"
         run: tox

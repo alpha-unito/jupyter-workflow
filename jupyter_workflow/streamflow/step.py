@@ -16,10 +16,10 @@ from streamflow.core.exception import (
     WorkflowExecutionException,
 )
 from streamflow.core.persistence import DatabaseLoadingContext
+from streamflow.core.processor import CommandOutputProcessor
 from streamflow.core.utils import get_class_from_name, get_class_fullname
 from streamflow.core.workflow import (
     CommandOutput,
-    CommandOutputProcessor,
     Job,
     Port,
     Status,
