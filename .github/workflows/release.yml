@@ -10,7 +10,7 @@ on:
 jobs:
   github:
     name: "Create GitHub Release"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -44,7 +44,7 @@ jobs:
           prerelease: false
   pypi:
     name: "Publish on PyPI"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/project/jupyter-workflow
@@ -58,7 +58,7 @@ jobs:
           version: "0.9.16"
       - uses: actions/setup-python@v6
         with:
-          python-version: 3.13
+          python-version: 3.14
       - name: "Install Jupyter Workflow"
         run: uv sync --locked --no-dev
       - name: "Get Jupyter Workflow version"
