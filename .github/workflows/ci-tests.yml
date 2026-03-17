@@ -63,7 +63,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
       - name: "Run Jupyter Workflow tests via Tox"
         run: tox
       - name: "Upload coverage report for unit tests"
