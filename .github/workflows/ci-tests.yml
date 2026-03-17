@@ -67,7 +67,7 @@ jobs:
       - name: "Run Jupyter Workflow tests via Tox"
         run: tox
       - name: "Upload coverage report for unit tests"
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ format('py{0}-unit-tests', matrix.python) }}
           path: ./coverage.xml
