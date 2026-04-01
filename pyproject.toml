@@ -36,7 +36,7 @@ dependencies = [
     "jupyter_client==8.6.3",
     "nbclient==0.10.4",
     "nbformat==5.10.4",
-    "streamflow==0.2.0.dev14",
+    "streamflow==0.2.0rc1",
     "traitlets==5.14.3"
 ]
 version = "0.1.0.dev4"
