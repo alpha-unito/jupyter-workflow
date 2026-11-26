@@ -19,12 +19,12 @@ Then, you can install it on a Jupyter Notebook server by running the following c
 python -m jupyter_workflow.ipython.install
 ```
 
-Please note that Jupyter Workflow requires `python >= 3.10`. Then you can associate your Jupyter Notebooks with the newly installed kernel. Some examples can be found under the `examples` folder in the [GitHub repository](https://github.com/alpha-unito/jupyter-workflow).
+Please note that Jupyter Workflow requires `python >= 3.11`. Then you can associate your Jupyter Notebooks with the newly installed kernel. Some examples can be found under the `examples` folder in the [GitHub repository](https://github.com/alpha-unito/jupyter-workflow).
 
 ## Jupyter Workflow Team
 
-Iacopo Colonnelli <iacopo.colonnelli@unito.it> (creator and maintainer) 
-Alberto Mulone <alberto.mulone@unito.it> (maintainer)
-Sergio Rabellino <sergio.rabellino@unito.it> (maintainer)  
-Barbara Cantalupo <barbara.cantalupo@unito.it> (maintainer)  
+Iacopo Colonnelli <iacopo.colonnelli@unito.it> (creator and maintainer)  
+Alberto Mulone <alberto.mulone@unito.it> (maintainer)  
+Sergio Rabellino <sergio.rabellino@unito.it> (maintainer)    
+Barbara Cantalupo <barbara.cantalupo@unito.it> (maintainer)    
 Marco Aldinucci <aldinuc@di.unito.it> (maintainer)  
