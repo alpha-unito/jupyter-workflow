@@ -8,11 +8,12 @@ from cloudpickle import dumps, loads
 from streamflow.core.context import StreamFlowContext
 from streamflow.core.data import DataType
 from streamflow.core.exception import WorkflowExecutionException
-from streamflow.core.persistence import DatabaseLoadingContext
+from streamflow.core.persistence import Database, DatabaseLoadingContext
 from streamflow.core.workflow import Token
 from streamflow.data.remotepath import StreamFlowPath
 from streamflow.workflow.token import FileToken
 from streamflow.workflow.utils import get_token_value
+from typing_extensions import Self
 
 
 async def _get_file_token_weight(
@@ -44,18 +45,17 @@ class JupyterToken(Token):
     @classmethod
     async def _load(
         cls,
-        context: StreamFlowContext,
         row: MutableMapping[str, Any],
         loading_context: DatabaseLoadingContext,
-    ) -> Token:
+    ) -> Self:
         value = json.loads(row["value"])
         if isinstance(value, MutableMapping) and "token" in value:
-            value = await loading_context.load_token(context, value["token"])
+            value = await loading_context.load_token(value["token"])
         else:
             value = loads(bytes.fromhex(value))
         return cls(tag=row["tag"], value=value)
 
-    async def _save_value(self, context: StreamFlowContext):
+    async def _save_value(self, database: Database):
         return (
             {"token": self.value.persistent_id}
             if isinstance(self.value, Token)
@@ -67,13 +67,12 @@ class ProgramContextToken(Token):
     @classmethod
     async def _load(
         cls,
-        context: StreamFlowContext,
         row: MutableMapping[str, Any],
         loading_context: DatabaseLoadingContext,
-    ) -> Token:
+    ) -> Self:
         value = json.loads(row["value"])
         if isinstance(value, MutableMapping) and "token" in value:
-            value = await loading_context.load_token(context, value["token"])
+            value = await loading_context.load_token(value["token"])
         else:
             names = globals()
             for name in value:
@@ -85,5 +84,5 @@ class ProgramContextToken(Token):
                     )
         return cls(tag=row["tag"], value=value)
 
-    async def _save_value(self, context: StreamFlowContext):
+    async def _save_value(self, database: Database):
         return list(self.value.keys())

@@ -5,13 +5,13 @@ import json
 from collections.abc import MutableMapping, MutableSequence
 from typing import Any, cast
 
-from streamflow.core.context import StreamFlowContext
 from streamflow.core.exception import WorkflowExecutionException
-from streamflow.core.persistence import DatabaseLoadingContext
+from streamflow.core.persistence import Database, DatabaseLoadingContext
 from streamflow.core.workflow import Token, Workflow
 from streamflow.workflow.token import ListToken
 from streamflow.workflow.transformer import OneToOneTransformer
 from streamflow.workflow.utils import get_token_value
+from typing_extensions import Self
 
 from jupyter_workflow.config.config import SplitType
 from jupyter_workflow.streamflow.token import JupyterToken
@@ -57,22 +57,21 @@ class MakeListTransformer(OneToOneTransformer):
     @classmethod
     async def _load(
         cls,
-        context: StreamFlowContext,
         row: MutableMapping[str, Any],
         loading_context: DatabaseLoadingContext,
-    ):
+    ) -> Self:
         params = json.loads(row["params"])
         return cls(
             name=row["name"],
-            workflow=await loading_context.load_workflow(context, row["workflow"]),
+            workflow=await loading_context.load_workflow(row["workflow"]),
             split_type=SplitType[params["split_type"]],
             split_size=params["split_size"],
         )
 
     async def _save_additional_params(
-        self, context: StreamFlowContext
+        self, database: Database
     ) -> MutableMapping[str, Any]:
-        return cast(dict, await super()._save_additional_params(context)) | {
+        return cast(dict, await super()._save_additional_params(database)) | {
             "split_type": self.split_type.name,
             "split_size": self.split_size,
         }

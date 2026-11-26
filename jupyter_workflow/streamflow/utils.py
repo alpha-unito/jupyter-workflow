@@ -4,11 +4,11 @@ import asyncio
 import builtins
 import posixpath
 from collections.abc import MutableMapping, MutableSequence
-from typing import Any
+from typing import Any, cast
 
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.deployment import Connector, ExecutionLocation, Target
+from streamflow.core.deployment import ExecutionLocation, Target
 from streamflow.core.workflow import Job, Token, Workflow
 from streamflow.data.remotepath import StreamFlowPath
 from streamflow.deployment.utils import get_path_processor
@@ -19,15 +19,14 @@ from jupyter_workflow.streamflow.token import JupyterFileToken, JupyterToken
 
 
 async def _register_path(context: StreamFlowContext, job: Job, path: str):
-    connector = context.scheduler.get_connector(job.name)
-    path_processor = get_path_processor(connector)
-    locations = context.scheduler.get_locations(job.name)
-    relpath = (
-        path_processor.relpath(path, job.output_directory)
-        if path.startswith(job.output_directory)
-        else path_processor.basename(path)
-    )
-    for location in locations:
+    for location in context.scheduler.get_locations(job.name):
+        path_processor = get_path_processor(location)
+        relpath = (
+            path_processor.relpath(path, job.output_directory)
+            if job.output_directory is not None
+            and path.startswith(job.output_directory)
+            else path_processor.basename(path)
+        )
         if await StreamFlowPath(path, context=context, location=location).exists():
             context.data_manager.register_path(
                 location=location, path=path, relpath=relpath
@@ -48,15 +47,13 @@ def get_deploy_step(
 
 async def get_file_token_from_ns(
     context: StreamFlowContext,
-    connector: Connector,
     job: Job,
     locations: MutableSequence[ExecutionLocation],
-    output_directory: str,
+    output_directory: str | None,
     user_ns: MutableMapping[str, Any],
     value: Any,
-    value_from: str,
+    value_from: str | None,
 ) -> Token:
-    path_processor = get_path_processor(connector)
     if value is not None:
         paths = []
         for location in locations:
@@ -72,7 +69,8 @@ async def get_file_token_from_ns(
         )
         value = paths[0] if len(paths) == 1 else paths
     else:
-        value = user_ns.get(value_from)
+        value = cast(str, user_ns.get(value_from))
+        path_processor = get_path_processor(locations[0])
         if not path_processor.isabs(value):
             value = path_processor.join(output_directory, value)
         await _register_path(context=context, job=job, path=value)

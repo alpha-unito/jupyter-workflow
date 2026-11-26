@@ -32,7 +32,6 @@ class JupyterFileCommandOutputProcessor(CommandOutputProcessor):
     ) -> Token | None:
         return await utils.get_file_token_from_ns(
             context=self.workflow.context,
-            connector=self._get_connector(connector, job),
             job=job,
             locations=await self._get_locations(connector, job),
             output_directory=(

@@ -35,7 +35,7 @@ class StreamFlowDisplayPublisher(ZMQDisplayPublisher):
 
     @parent_header.deleter
     def parent_header(self):
-        self._parent_headers.pop(self.cell_id.get())
+        self._parent_headers.pop(self.cell_id.get(), None)
 
     def set_cell_id(self, cell_id: str):
         self.cell_id.set(cell_id)
@@ -59,7 +59,7 @@ class StreamFlowShellDisplayHook(ZMQShellDisplayHook):
 
     @property
     def parent_header(self):
-        return self._parent_headers[self.cell_id.get()]
+        return self._parent_headers.get(self.cell_id.get(), {})
 
     @parent_header.setter
     def parent_header(self, header: MutableMapping):
@@ -67,7 +67,7 @@ class StreamFlowShellDisplayHook(ZMQShellDisplayHook):
 
     @parent_header.deleter
     def parent_header(self):
-        del self._parent_headers[self.cell_id.get()]
+        self._parent_headers.pop(self.cell_id.get(), None)
 
     def set_cell_id(self, cell_id: str):
         self.cell_id.set(cell_id)
