@@ -16,7 +16,7 @@ jobs:
     permissions:
       security-events: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v4
         with:
           config-file: .github/codeql/config.yml
@@ -31,7 +31,7 @@ jobs:
     env:
       TOXENV: ${{ matrix.step }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.16"
@@ -51,7 +51,7 @@ jobs:
     env:
       TOXENV: ${{ format('py{0}-unit', matrix.python) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.16"
@@ -78,7 +78,7 @@ jobs:
     needs: [ "unit-tests" ]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: "Download artifacts"
         uses: actions/download-artifact@v8
       - name: "Upload coverage to Codecov"
