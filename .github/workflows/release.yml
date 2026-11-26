@@ -58,7 +58,7 @@ jobs:
           version: "0.9.16"
       - uses: actions/setup-python@v7
         with:
-          python-version: 3.14
+          python-version: 3.15
       - name: "Install Jupyter Workflow"
         run: uv sync --locked --no-dev
       - name: "Get Jupyter Workflow version"
