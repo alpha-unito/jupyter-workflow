@@ -37,7 +37,7 @@ dependencies = [
     "nbclient==0.10.4",
     "nbformat==5.11.1",
     "streamflow==0.2.0.dev14",
-    "traitlets==5.15.0"
+    "traitlets==5.16.1"
 ]
 version = "0.1.0.dev4"
 
