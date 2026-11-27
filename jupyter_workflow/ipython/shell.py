@@ -17,7 +17,7 @@ from IPython.core.error import InputRejected
 from IPython.core.interactiveshell import ExecutionResult
 from streamflow.core import utils
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.deployment import ExecutionLocation, LocalTarget
+from streamflow.core.deployment import ExecutionLocation
 from streamflow.core.exception import WorkflowDefinitionException
 from streamflow.core.workflow import Token, Workflow
 from streamflow.data import DefaultDataManager
@@ -130,7 +130,7 @@ class StreamFlowInteractiveShell(ZMQInteractiveShell):
         self.context: StreamFlowContext = build_context()
         self.context.data_manager.register_path(
             location=ExecutionLocation(
-                deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__"
+                deployment="__LOCAL__", local=True, name="__LOCAL__"
             ),
             path=os.path.join(executor.__file__),
             relpath=os.path.basename(executor.__file__),

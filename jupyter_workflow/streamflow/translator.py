@@ -448,7 +448,9 @@ class JupyterNotebookTranslator:
     ):
         step = workflow.steps[posixpath.join(cell.metadata["cell_id"], "__schedule__")]
         input_ports = {
-            k: v for k, v in step.get_input_ports().items() if k != "__connector__"
+            k: v
+            for k, v in step.get_input_ports().items()
+            if not k.startswith("__connector__")
         }
         # Retrieve cell input types
         cell_inputs = {
@@ -481,12 +483,12 @@ class JupyterNotebookTranslator:
             if split_step := workflow.steps.get(
                 posixpath.join(cell.metadata["cell_id"], port_name, "__split__")
             ):
-                port = split_step.get_input_port(port_name) or port
+                port = split_step.get_input_port(port_name)
             # Otherwise, check for a combinator step and, if yes, inject input into its port
             elif combinator_step := workflow.steps.get(
                 posixpath.join(cell.metadata["cell_id"], "__combinator__")
             ):
-                port = combinator_step.get_input_port(port_name) or port
+                port = combinator_step.get_input_port(port_name)
             # If the port has at least an input step, skip it
             if port.get_input_steps():
                 continue

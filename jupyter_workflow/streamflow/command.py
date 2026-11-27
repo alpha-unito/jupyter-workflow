@@ -15,7 +15,7 @@ from typing import Any, cast
 
 import cloudpickle as pickle
 from streamflow.core.context import StreamFlowContext
-from streamflow.core.deployment import ExecutionLocation, LocalTarget
+from streamflow.core.deployment import ExecutionLocation
 from streamflow.core.utils import random_name
 from streamflow.core.workflow import Command, CommandOutput, Job, Status, Step
 from streamflow.data.remotepath import StreamFlowPath
@@ -40,9 +40,7 @@ async def _transfer_data(
         src_location=location,
         src_path=src,
         dst_locations=[
-            ExecutionLocation(
-                deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__"
-            )
+            ExecutionLocation(deployment="__LOCAL__", local=True, name="__LOCAL__")
         ],
         dst_path=dst,
     )
@@ -96,10 +94,8 @@ class JupyterCommand(Command):
     ) -> MutableMapping[str, Any]:
         if src_path:
             with TemporaryDirectory() as d:
-                src_connector = self.step.workflow.context.scheduler.get_connector(
-                    job.name
-                )
-                path_processor = get_path_processor(src_connector)
+                locations = self.step.workflow.context.scheduler.get_locations(job.name)
+                path_processor = get_path_processor(locations[0])
                 dst_path = os.path.join(d, path_processor.basename(src_path))
                 await asyncio.gather(
                     *(
@@ -109,7 +105,7 @@ class JupyterCommand(Command):
                                 src_path=src_path,
                                 dst_locations=[
                                     ExecutionLocation(
-                                        deployment=LocalTarget.deployment_name,
+                                        deployment="__LOCAL__",
                                         local=True,
                                         name="__LOCAL__",
                                     )
@@ -117,9 +113,7 @@ class JupyterCommand(Command):
                                 dst_path=dst_path,
                             )
                         )
-                        for location in self.step.workflow.context.scheduler.get_locations(
-                            job.name
-                        )
+                        for location in locations
                     )
                 )
                 with open(dst_path, "rb") as f:
@@ -139,7 +133,7 @@ class JupyterCommand(Command):
                                             src_path=namespace[name],
                                             dst_locations=[
                                                 ExecutionLocation(
-                                                    deployment=LocalTarget.deployment_name,
+                                                    deployment="__LOCAL__",
                                                     local=True,
                                                     name="__LOCAL__",
                                                 )
@@ -189,7 +183,7 @@ class JupyterCommand(Command):
     async def _serialize_to_remote_file(self, job: Job, element: Any) -> str:
         fd, src_path = tempfile.mkstemp()
         location = ExecutionLocation(
-            deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__"
+            deployment="__LOCAL__", local=True, name="__LOCAL__"
         )
         sf_path = await StreamFlowPath(
             src_path, context=self.step.workflow.context, location=location
@@ -205,15 +199,15 @@ class JupyterCommand(Command):
         return await self._transfer_file(job, src_path)
 
     async def _transfer_file(self, job: Job, path: str) -> str:
-        dst_connector = self.step.workflow.context.scheduler.get_connector(job.name)
-        path_processor = get_path_processor(dst_connector)
+        locations = self.step.workflow.context.scheduler.get_locations(job.name)
+        path_processor = get_path_processor(locations[0])
         dst_path = path_processor.join(job.input_directory, os.path.basename(path))
         await self.step.workflow.context.data_manager.transfer_data(
             src_location=ExecutionLocation(
-                deployment=LocalTarget.deployment_name, local=True, name="__LOCAL__"
+                deployment="__LOCAL__", local=True, name="__LOCAL__"
             ),
             src_path=path,
-            dst_locations=self.step.workflow.context.scheduler.get_locations(job.name),
+            dst_locations=locations,
             dst_path=dst_path,
             writable=True,
         )
@@ -241,7 +235,7 @@ class JupyterCommand(Command):
         # Serialize AST nodes to remote resource
         code_path = await self._serialize_to_remote_file(job, self.ast_nodes)
         # Configure output file path
-        path_processor = get_path_processor(connector)
+        path_processor = get_path_processor(locations[0])
         output_name = random_name()
         output_path = path_processor.join(job.output_directory, output_name)
         # Extract serializers from command tokens
